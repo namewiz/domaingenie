@@ -1,24 +1,38 @@
 import { containsNumber, vowelRatio } from './utils';
 
-const TLD_WEIGHTS: Record<string, number> = {
+const DEFAULT_TLD_WEIGHTS: Record<string, number> = {
   com: 20,
   net: 10,
   org: 10,
 };
 
-export function scoreDomain(label: string, tld: string, location?: string): number {
+type RankingConfig = {
+  tldWeights?: Record<string, number>;
+  hyphenPenalty?: number;
+  numberPenalty?: number;
+};
+
+export function scoreDomain(label: string, tld: string, location?: string, config: RankingConfig = {}): number {
   let score = 100;
   const len = label.length;
   score -= len; // shorter is better
   const hyphenCount = (label.match(/-/g) || []).length;
-  score -= hyphenCount * 5;
   const numCount = (label.match(/[0-9]/g) || []).length;
-  score -= numCount * 5;
-  if (containsNumber(label)) score -= 5;
-  score += vowelRatio(label) * 10;
+  const hyphenPenalty = config.hyphenPenalty ?? 5;
+  const numberPenalty = config.numberPenalty ?? 5;
+  score -= hyphenCount * hyphenPenalty;
+  score -= numCount * numberPenalty;
+  if (containsNumber(label)) score -= numberPenalty;
+
+  const ratio = vowelRatio(label);
+  score += ratio * 10;
+  if (ratio < 0.3) score -= 10; // hard to pronounce
+  if (/([bcdfghjklmnpqrstvwxyz]{4,})/i.test(label)) score -= 5; // many consonants together
+  if (/([a-z])\1{2,}/i.test(label)) score -= 5; // repeated letters reduce brandability
 
   const suffix = tld.toLowerCase();
-  score += TLD_WEIGHTS[suffix] || 0;
+  const weights = config.tldWeights || DEFAULT_TLD_WEIGHTS;
+  score += weights[suffix] || 0;
   if (location && suffix === location.toLowerCase()) {
     score += 15;
   }

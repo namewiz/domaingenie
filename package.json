@@ -7,6 +7,9 @@
     "build": "esbuild src/index.ts --bundle --outdir=dist --platform=node --format=esm",
     "test": "npm run build && ava"
   },
+  "dependencies": {
+    "synonyms": "^1.0.1"
+  },
   "devDependencies": {
     "ava": "^5.3.1",
     "esbuild": "^0.25.9",

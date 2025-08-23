@@ -1,11 +1,26 @@
 const TLD_REGEX = /^[a-z]{2,}(?:\.[a-z]{2,})?$/i;
+const LOCATION_MAP: Record<string, string> = {
+  'united states': 'us',
+  usa: 'us',
+  'united kingdom': 'uk',
+  uk: 'uk',
+  canada: 'ca',
+  germany: 'de',
+  france: 'fr',
+  australia: 'au',
+  india: 'in',
+};
 
 export function normalizeTokens(input: string): string[] {
   return (input.toLowerCase().match(/[a-z0-9]+/g) || []);
 }
 
+export function normalizeTld(tld: string): string {
+  return tld.replace(/^\./, '').toLowerCase();
+}
+
 export function isValidTld(tld: string): boolean {
-  return TLD_REGEX.test(tld);
+  return TLD_REGEX.test(normalizeTld(tld));
 }
 
 export function unique<T>(arr: T[]): T[] {
@@ -14,10 +29,11 @@ export function unique<T>(arr: T[]): T[] {
 
 export function getCcTld(location?: string): string | undefined {
   if (!location) return undefined;
-  const cc = location.toLowerCase();
-  if (/^[a-z]{2}$/.test(cc)) {
-    return cc;
+  const lower = location.toLowerCase();
+  if (/^[a-z]{2}$/.test(lower)) {
+    return lower;
   }
+  if (LOCATION_MAP[lower]) return LOCATION_MAP[lower];
   return undefined;
 }
 

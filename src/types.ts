@@ -15,6 +15,7 @@ export interface DomainResult {
   score: number;
   isAvailable?: boolean;
   aiGenerated?: boolean;
+  variantTypes?: string[];
 }
 
 export interface SearchResponse {

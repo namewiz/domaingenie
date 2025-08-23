@@ -71,3 +71,8 @@ test('invalid tld triggers error', async t => {
   const res = await client.search({ query: 'fast tech', supportedTlds: ['bad_tld'] });
   t.false(res.success);
 });
+
+test('tld hacks generate dotted domains when supported', async t => {
+  const res = await client.search({ query: 'brandly', supportedTlds: ['ly', 'com'], limit: 200 });
+  t.true(res.results.some(r => r.domain === 'brand.ly'));
+});

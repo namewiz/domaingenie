@@ -57,19 +57,20 @@ export class DomainSearchClient {
 
     const tokens = normalizeTokens(params.query);
     const keywords = params.keywords?.map(k => k.toLowerCase()) || [];
-    const labels = generateLabels(tokens, keywords, {
+    const tldsForGen = unique([...supportedTlds, ...defaultTlds]);
+    const labels = generateLabels(tokens, keywords, tldsForGen, {
       prefixes: this.config.prefixes,
       suffixes: this.config.suffixes,
       maxSynonyms: this.config.maxSynonyms,
     });
 
-    let tlds = unique([...defaultTlds, ...supportedTlds]);
+    let tlds = tldsForGen.slice();
     const cc = getCcTld(params.location);
     if (cc && !tlds.includes(cc)) tlds.push(cc);
     if (cc && !supportedTlds.includes(cc)) supportedTlds.push(cc);
 
     const results: DomainResult[] = [];
-    for (const label of labels) {
+    for (const { label, types } of labels) {
       if (label.length === 0) continue;
       if (label.includes('.')) {
         const parts = label.split('.');
@@ -79,7 +80,7 @@ export class DomainSearchClient {
           const score = scoreDomain(parts.join('.'), suffix, cc, {
             tldWeights: this.config.tldWeights,
           });
-          results.push({ domain, suffix: '.' + suffix, score, isAvailable: false });
+          results.push({ domain, suffix: '.' + suffix, score, isAvailable: false, variantTypes: types });
         }
         continue;
       }
@@ -87,11 +88,23 @@ export class DomainSearchClient {
         if (supportedTlds && !supportedTlds.includes(tld)) continue;
         const domain = `${label}.${tld}`;
         const score = scoreDomain(label, tld, cc, { tldWeights: this.config.tldWeights });
-        results.push({ domain, suffix: '.' + tld, score, isAvailable: false });
+        results.push({ domain, suffix: '.' + tld, score, isAvailable: false, variantTypes: types });
       }
     }
 
-    const uniqueResults = unique(results.map(r => r.domain)).map(d => results.find(r => r.domain === d) as DomainResult);
+    const resultMap = new Map<string, DomainResult>();
+    for (const r of results) {
+      const existing = resultMap.get(r.domain);
+      if (existing) {
+        if (r.score > existing.score) existing.score = r.score;
+        if (r.variantTypes) {
+          existing.variantTypes = unique([...(existing.variantTypes || []), ...r.variantTypes]);
+        }
+      } else {
+        resultMap.set(r.domain, { ...r });
+      }
+    }
+    const uniqueResults = Array.from(resultMap.values());
     uniqueResults.sort((a, b) => b.score - a.score);
 
     let finalResults = uniqueResults.slice(0, limit);
@@ -114,3 +127,4 @@ export class DomainSearchClient {
 }
 
 export type { DomainSearchParams, DomainResult, SearchResponse } from './types';
+export { generateLabels } from './generator';

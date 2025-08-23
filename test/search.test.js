@@ -1,5 +1,5 @@
-const test = require('ava');
-const { DomainSearchClient } = require('../dist/index.js');
+import test from 'ava';
+import { DomainSearchClient } from '../dist/index.js';
 
 const client = new DomainSearchClient();
 

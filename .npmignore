@@ -1,0 +1,7 @@
+.claude
+.github
+src/**
+**/*.ts
+test/**
+tsconfig.json
+package-lock.json

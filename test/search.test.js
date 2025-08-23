@@ -39,3 +39,35 @@ test('input validation catches bad limits', async t => {
   const res = await client.search({ query: 'fast tech', limit: -1 });
   t.false(res.success);
 });
+
+test('custom prefix and suffix generate variants', async t => {
+  const custom = new DomainSearchClient({ prefixes: ['super'], suffixes: ['zone'] });
+  const res = await custom.search({ query: 'fast tech', limit: 200 });
+  t.true(res.results.some(r => r.domain === 'superfasttech.com'));
+  t.true(res.results.some(r => r.domain === 'fasttechzone.com'));
+});
+
+test('AI flag populates includesAiGenerations', async t => {
+  const res = await client.search({ query: 'fast tech', useAi: true });
+  t.true(res.includesAiGenerations);
+});
+
+test('supportedTlds filter applies and is noted in metadata', async t => {
+  const res = await client.search({ query: 'fast tech', supportedTlds: ['net'] });
+  t.true(res.results.every(r => r.suffix === '.net'));
+  t.true(res.metadata.filterApplied);
+});
+
+test('custom tld weights influence ranking', async t => {
+  const weighted = new DomainSearchClient({ tldWeights: { com: 0, net: 50, org: 0 } });
+  const res = await weighted.search({ query: 'fast tech', debug: true, limit: 200 });
+  const com = res.results.find(r => r.domain === 'fasttech.com');
+  const net = res.results.find(r => r.domain === 'fasttech.net');
+  t.truthy(com && net);
+  t.true(net.score > com.score);
+});
+
+test('invalid tld triggers error', async t => {
+  const res = await client.search({ query: 'fast tech', supportedTlds: ['bad_tld'] });
+  t.false(res.success);
+});

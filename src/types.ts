@@ -5,6 +5,8 @@ export interface DomainSearchParams {
   supportedTlds?: string[];
   defaultTlds?: string[];
   limit?: number;
+  debug?: boolean;
+  useAi?: boolean;
 }
 
 export interface DomainResult {
@@ -31,4 +33,8 @@ export interface DomainSearchConfig {
   defaultTlds: string[];
   supportedTlds: string[];
   limit: number;
+  prefixes?: string[];
+  suffixes?: string[];
+  maxSynonyms?: number;
+  tldWeights?: Record<string, number>;
 }

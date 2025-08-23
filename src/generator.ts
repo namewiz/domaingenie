@@ -1,56 +1,57 @@
 import { expandSynonyms } from './synonyms';
 import { unique } from './utils';
 
-const PREFIXES = ['my', 'the'];
-const SUFFIXES = ['ly', 'ify'];
+type GenConfig = {
+  prefixes?: string[];
+  suffixes?: string[];
+  maxSynonyms?: number;
+};
 
-export function generateLabels(tokens: string[], keywords: string[] = []): string[] {
-  const synonymLists = tokens.map(t => expandSynonyms(t));
-  if (keywords.length) {
-    synonymLists.push(keywords.map(k => k.toLowerCase()));
-  }
-  // Limit synonyms per token to first 3 to control explosion
-  const trimmed = synonymLists.map(list => list.slice(0, 3));
-
+function combine(lists: string[][], joiner = ''): string[] {
   const results: string[] = [];
-
-  function combine(prefix: string, index: number) {
-    if (index === trimmed.length) {
+  function helper(prefix: string, idx: number) {
+    if (idx === lists.length) {
       results.push(prefix);
       return;
     }
-    for (const token of trimmed[index]) {
-      combine(prefix + token, index + 1);
+    for (const token of lists[idx]) {
+      const next = prefix ? prefix + joiner + token : token;
+      helper(next, idx + 1);
     }
   }
+  if (lists.length) helper('', 0);
+  return results;
+}
 
-  if (trimmed.length) {
-    combine('', 0);
-    if (trimmed.length > 1) {
-      const reversed = [...trimmed].reverse();
-      function combineRev(prefix: string, index: number) {
-        if (index === reversed.length) {
-          results.push(prefix);
-          return;
-        }
-        for (const token of reversed[index]) {
-          combineRev(prefix + token, index + 1);
-        }
-      }
-      combineRev('', 0);
-    }
+export function generateLabels(tokens: string[], keywords: string[] = [], config: GenConfig = {}): string[] {
+  const maxSyn = config.maxSynonyms ?? 5;
+  const synLists = tokens.map(t => expandSynonyms(t, maxSyn));
+  if (keywords.length) synLists.push(keywords.map(k => k.toLowerCase()));
+
+  // base combinations
+  let labels: string[] = [];
+  labels.push(...combine(synLists));
+  if (synLists.length > 1) {
+    labels.push(...combine([...synLists].reverse()));
+    const alphaTokens = [...tokens].sort();
+    const alphaLists = alphaTokens.map(t => expandSynonyms(t, maxSyn));
+    labels.push(...combine(alphaLists));
   }
 
-  // Prefixes and suffixes
+  // hyphenated versions
+  if (synLists.length > 1) {
+    const hyphenLabels = combine(synLists, '-');
+    labels.push(...hyphenLabels);
+  }
+
+  // prefixes and suffixes
   const withAffixes = new Set<string>();
-  for (const label of results) {
+  const prefixes = config.prefixes || [];
+  const suffixes = config.suffixes || [];
+  for (const label of labels) {
     withAffixes.add(label);
-    for (const pre of PREFIXES) {
-      withAffixes.add(pre + label);
-    }
-    for (const suf of SUFFIXES) {
-      withAffixes.add(label + suf);
-    }
+    for (const pre of prefixes) withAffixes.add(pre + label);
+    for (const suf of suffixes) withAffixes.add(label + suf);
   }
 
   return unique(Array.from(withAffixes));

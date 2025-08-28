@@ -1,14 +1,13 @@
 const TLD_REGEX = /^[a-z]{2,}(?:\.[a-z]{2,})?$/i;
 const LOCATION_MAP: Record<string, string> = {
-  'united states': 'us',
-  usa: 'us',
-  'united kingdom': 'uk',
-  uk: 'uk',
-  canada: 'ca',
-  germany: 'de',
-  france: 'fr',
-  australia: 'au',
-  india: 'in',
+  'us': 'us',
+  'uk': 'co.uk',
+  'ca': 'ca',
+  'de': 'de',
+  'fr': 'fr',
+  'au': 'au',
+  'in': 'in',
+  'ng': 'ng',
 };
 
 export function normalizeTokens(input: string): string[] {

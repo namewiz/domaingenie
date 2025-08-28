@@ -49,7 +49,7 @@ interface DomainSearchResult {
 
 interface DomainItem {
   domain: string;          // Full domain (e.g. "foobar.com")
-  suffix: string;          // The TLD suffix (e.g. ".com" or ".com.ng")
+  suffix: string;          // The TLD suffix (e.g. "com" or "com.ng")
   score: number;           // Internal score used for ranking (not exposed by default)
 }
 ```

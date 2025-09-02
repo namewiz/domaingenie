@@ -8,7 +8,8 @@
     "test": "npm run build && ava"
   },
   "dependencies": {
-    "synonyms": "^1.0.1"
+    "synonyms": "^1.0.1",
+    "@mlc-ai/web-llm": "^0.2.79"
   },
   "devDependencies": {
     "ava": "^5.3.1",

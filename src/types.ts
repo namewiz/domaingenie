@@ -1,3 +1,10 @@
+export interface AIFilters {
+  tlds?: string[];
+  domainLength?: { min: number; max: number };
+  wordCount?: string;
+  keywords?: { include: string; exclude: string };
+}
+
 export interface DomainSearchParams {
   query: string;
   keywords?: string[];
@@ -7,6 +14,7 @@ export interface DomainSearchParams {
   limit?: number;
   debug?: boolean;
   useAi?: boolean;
+  aiFilters?: AIFilters;
 }
 
 export interface DomainResult {
@@ -38,4 +46,5 @@ export interface DomainSearchConfig {
   suffixes?: string[];
   maxSynonyms?: number;
   tldWeights?: Record<string, number>;
+  enableAI?: boolean;
 }

@@ -1,7 +1,8 @@
-import { DomainSearchParams, DomainResult, SearchResponse, DomainSearchConfig } from './types';
+import { DomainSearchParams, DomainResult, SearchResponse, DomainSearchConfig, AIFilters } from './types';
 import { normalizeTokens, unique, isValidTld, getCcTld, normalizeTld } from './utils';
 import { generateLabels } from './generator';
 import { scoreDomain } from './ranking';
+import { SmartAIService } from './ai/smart-ai-service';
 
 const DEFAULT_CONFIG: DomainSearchConfig = {
   defaultTlds: ['com'],
@@ -11,6 +12,7 @@ const DEFAULT_CONFIG: DomainSearchConfig = {
   suffixes: ['ly', 'ify'],
   maxSynonyms: 5,
   tldWeights: { com: 20, net: 10, org: 10 },
+  enableAI: false,
 };
 
 function error(message: string): SearchResponse {
@@ -25,6 +27,7 @@ function error(message: string): SearchResponse {
 
 export class DomainSearchClient {
   private config: DomainSearchConfig;
+  private aiService?: SmartAIService;
 
   constructor(config: Partial<DomainSearchConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -49,6 +52,83 @@ export class DomainSearchClient {
     if (params.supportedTlds && !Array.isArray(params.supportedTlds)) return error('supportedTlds must be an array');
     if (params.defaultTlds && !Array.isArray(params.defaultTlds)) return error('defaultTlds must be an array');
 
+    // Simple AI vs Traditional switch
+    if (params.useAi) {
+      return this.performAISearch(params, start);
+    } else {
+      return this.performTraditionalSearch(params, start);
+    }
+  }
+
+  private async performAISearch(params: DomainSearchParams, start: number): Promise<SearchResponse> {
+    console.log('🤖 [ai-domain-generator] Starting AI search with params:', {
+      query: params.query,
+      limit: params.limit,
+      aiFilters: params.aiFilters
+    });
+
+    try {
+      // Initialize AI service lazily (only when needed)
+      if (!this.aiService) {
+        console.log('🔄 [ai-domain-generator] Initializing AI service...');
+        this.aiService = new SmartAIService();
+      }
+
+      const limit = params.limit ?? this.config.limit;
+      console.log(`🎯 [ai-domain-generator] Generating ${limit} domains for query: "${params.query}"`);
+      
+      // Generate domains using AI with filters
+      const aiResults = await this.aiService.generateDomains(params.query, {
+        limit,
+        filters: params.aiFilters
+      });
+      
+      console.log('🎉 [ai-domain-generator] AI generation completed:', {
+        resultsCount: aiResults.length,
+        results: aiResults
+      });
+      
+      // Convert to library format
+      const domainResults: DomainResult[] = aiResults.map(aiResult => ({
+        domain: aiResult.domain,
+        suffix: this.extractSuffix(aiResult.domain),
+        score: 95,
+        isAvailable: false,
+        aiGenerated: true
+      }));
+      
+      console.log('✅ [ai-domain-generator] AI search successful, returning results');
+      return {
+        results: domainResults,
+        success: true,
+        includesAiGenerations: true,
+        metadata: {
+          searchTime: Date.now() - start,
+          totalGenerated: aiResults.length,
+          filterApplied: !!params.aiFilters
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ [ai-domain-generator] AI search failed:', {
+        error: error.message,
+        stack: error.stack,
+        params
+      });
+      console.warn('[ai-domain-generator] AI failed, falling back to traditional search');
+      return this.performTraditionalSearch(params, start);
+    }
+  }
+
+  private performTraditionalSearch(params: DomainSearchParams, start: number): SearchResponse {
+    console.log('🔍 [ai-domain-generator] Starting traditional search with params:', {
+      query: params.query,
+      limit: params.limit,
+      keywords: params.keywords
+    });
+
+    const limit = params.limit ?? this.config.limit;
+    
     const supportedTlds = (params.supportedTlds ?? this.config.supportedTlds).map(normalizeTld);
     const defaultTlds = (params.defaultTlds ?? this.config.defaultTlds).map(normalizeTld);
     for (const t of [...supportedTlds, ...defaultTlds]) {
@@ -112,19 +192,27 @@ export class DomainSearchClient {
       finalResults = finalResults.map(r => ({ domain: r.domain, suffix: r.suffix, score: r.score }));
     }
 
-    const end = Date.now();
     return {
       results: finalResults,
       success: true,
-      includesAiGenerations: !!params.useAi,
+      includesAiGenerations: false,
       metadata: {
-        searchTime: end - start,
+        searchTime: Date.now() - start,
         totalGenerated: uniqueResults.length,
         filterApplied: !!params.supportedTlds,
       },
     };
   }
+
+  private extractSuffix(domain: string): string {
+    const parts = domain.split('.');
+    if (parts.length >= 2) {
+      return '.' + parts.slice(1).join('.');
+    }
+    return '';
+  }
 }
 
 export type { DomainSearchParams, DomainResult, SearchResponse } from './types';
 export { generateLabels } from './generator';
+export { SmartAIService, smartAIService } from './ai/smart-ai-service';

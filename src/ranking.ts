@@ -34,7 +34,7 @@ export function scoreDomain(label: string, tld: string, location?: string, confi
   const weights = config.tldWeights || DEFAULT_TLD_WEIGHTS;
   score += weights[suffix] || 0;
   if (location && suffix === location.toLowerCase()) {
-    score += 15;
+    score += 20;
   }
   return score;
 }

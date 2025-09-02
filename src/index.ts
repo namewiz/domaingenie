@@ -3,16 +3,43 @@ import { normalizeTokens, unique, isValidTld, getCcTld, normalizeTld } from './u
 import { generateLabels } from './generator';
 import { scoreDomain } from './ranking';
 import { SmartAIService } from './ai/smart-ai-service';
+import tlds from "./tlds.json" assert { type: "json" };
+
+const TLD_MAP: Record<string, string | boolean> = {
+  ...(tlds as any).popular,
+  ...(tlds as any).gTLDs,
+  ...(tlds as any).ccTLDs,
+  ...(tlds as any).SLDs,
+};
+
 
 const DEFAULT_CONFIG: DomainSearchConfig = {
-  defaultTlds: ['com'],
-  supportedTlds: ['com', 'net', 'org'],
+  defaultTlds: ['com', 'ng'],
+  supportedTlds: Object.keys(TLD_MAP),
   limit: 20,
-  prefixes: ['my', 'the'],
-  suffixes: ['ly', 'ify'],
+  // more here - https://gist.github.com/marcanuy/06cb00bc36033cd12875
+  prefixes: [
+    'my', 'the', 'get', 'try', 'go', 'global', 'one', 'pro', 'best',
+    'hey', 'on', 'up', 'we', 'our', 'new', 'now', 'top', 'ez',
+    'you', 'max', 'neo', 're', 'be', 'do', 'co', 'hub', 'i', 'u',
+    'easy', 'fast', 'free', 'just', 'true', 'next', 'real', 'pure', 'good'
+  ],
+  suffixes: [
+    'ly', 'ify', 'hq', 'hub', 'app', 'web', 'spot', 'inc', 'site',
+    'io', 'ai', 'up', 'it', 'go', 'co', 'fy', 'me', 'now', 'lab',
+    'dev', 'tech', 'net', 'one', 'pay', 'kit', 'bot', 'base', 'box'
+  ],
   maxSynonyms: 5,
-  tldWeights: { com: 20, net: 10, org: 10 },
-  enableAI: false,
+  tldWeights: {
+      com: 20,
+      net: 10,
+      org: 10,
+      io: 10,
+      dev: 10,
+      me: 5,
+      ng: 10
+    },
+    enableAI: false
 };
 
 function error(message: string): SearchResponse {

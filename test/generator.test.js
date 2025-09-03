@@ -1,24 +1,37 @@
 import test from 'ava';
-import { generateLabels } from '../dist/index.js';
+import { generateCandidates } from '../dist/index.js';
 
-const find = (labels, label) => labels.find(l => l.label === label);
-
-test('generator produces permutations, hyphenated and affix variants', t => {
-  const labels = generateLabels(['fast', 'tech'], [], [], {
+test('generator produces permutations, hyphenated and affix variants', async t => {
+  const candidates = await generateCandidates({
+    query: 'fast tech',
     prefixes: ['pre'],
     suffixes: ['suf'],
+    supportedTlds: ['com'],
+    defaultTlds: [],
+    maxSynonyms: 1,
   });
-  t.true(find(labels, 'fasttech').types.includes('base'));
-  t.true(find(labels, 'techfast').types.includes('permutation'));
-  t.true(find(labels, 'fast-tech').types.includes('hyphenated'));
-  t.true(find(labels, 'prefasttech').types.includes('prefix'));
-  t.true(find(labels, 'fasttechsuf').types.includes('suffix'));
+  const domains = candidates.map(c => c.domain);
+  t.true(domains.includes('fasttech.com'));
+  t.true(domains.includes('techfast.com'));
+  t.true(domains.includes('fast-tech.com'));
+  t.true(domains.includes('prefasttech.com'));
+  t.true(domains.includes('fasttechsuf.com'));
 });
 
-test('generator produces alphabetical and tldHack variants', t => {
-  const alphaLabels = generateLabels(['z', 'a']);
-  t.true(find(alphaLabels, 'az').types.includes('alphabetical'));
+test('generator produces alphabetical and tldHack variants', async t => {
+  const alpha = await generateCandidates({
+    query: 'z a',
+    supportedTlds: ['com'],
+    defaultTlds: [],
+    maxSynonyms: 1,
+  });
+  t.true(alpha.some(c => c.domain === 'az.com'));
 
-  const hackLabels = generateLabels(['brandly'], [], ['ly']);
-  t.true(find(hackLabels, 'brand.ly').types.includes('tldHack'));
+  const hack = await generateCandidates({
+    query: 'brandly',
+    supportedTlds: ['ly'],
+    defaultTlds: [],
+    maxSynonyms: 1,
+  });
+  t.true(hack.some(c => c.domain === 'brand.ly'));
 });

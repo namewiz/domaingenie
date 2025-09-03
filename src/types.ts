@@ -1,41 +1,58 @@
-export interface DomainSearchParams {
+// Options --------------------------------------------------------------------
+
+/** Configuration provided when initializing the client. */
+export interface ClientInitOptions {
+  defaultTlds?: string[];
+  supportedTlds?: string[];
+  limit?: number;
+  prefixes?: string[];
+  suffixes?: string[];
+  maxSynonyms?: number;
+  tldWeights?: Record<string, number>;
+}
+
+/** Per-search options extending the client defaults. */
+export interface DomainSearchOptions extends ClientInitOptions {
   query: string;
   keywords?: string[];
   location?: string;
-  supportedTlds?: string[];
-  defaultTlds?: string[];
-  limit?: number;
   debug?: boolean;
   useAi?: boolean;
 }
 
-export interface DomainResult {
+// Results --------------------------------------------------------------------
+
+/** Represents a generated domain name candidate. */
+export interface DomainCandidate {
   domain: string;
   suffix: string;
   score: number;
   isAvailable?: boolean;
   aiGenerated?: boolean;
   variantTypes?: string[];
+  strategy?: string;
 }
 
+/** Metadata describing a search operation. */
+export interface SearchMetadata {
+  searchTime: number;
+  totalGenerated: number;
+  filterApplied: boolean;
+}
+
+/** Response returned from a domain search. */
 export interface SearchResponse {
-  results: DomainResult[];
+  results: DomainCandidate[];
   success: boolean;
   message?: string;
   includesAiGenerations: boolean;
-  metadata: {
-    searchTime: number;
-    totalGenerated: number;
-    filterApplied: boolean;
-  };
+  metadata: SearchMetadata;
 }
 
-export interface DomainSearchConfig {
-  defaultTlds: string[];
-  supportedTlds: string[];
-  limit: number;
-  prefixes?: string[];
-  suffixes?: string[];
-  maxSynonyms?: number;
-  tldWeights?: Record<string, number>;
+// Strategies -----------------------------------------------------------------
+
+/** Contract implemented by all generation strategies. */
+export interface GenerationStrategy {
+  generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]>;
 }
+

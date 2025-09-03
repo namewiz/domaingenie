@@ -1,12 +1,25 @@
 {
   "name": "ai-domain-generator",
-  "version": "0.0.2",
+  "version": "0.0.3",
+  "description": "A fast and intelligent domain name generator from natural language",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
     "build": "esbuild src/index.ts --bundle --outdir=dist --platform=node --format=esm",
     "test": "npm run build && ava"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justiceo/domain-search.git"
+  },
+  "bugs": {
+    "url": "https://github.com/justiceo/domain-search/issues"
+  },
+  "author": "Justice Ogbonna",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "license": "ISC",
   "dependencies": {
     "synonyms": "^1.0.1"
   },

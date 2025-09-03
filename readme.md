@@ -23,34 +23,50 @@ console.log(results.results);
 
 ## API
 
-### `client.search(params)`
+### `new DomainSearchClient(initOptions?)`
 
-Search for domain names based on a query string.
+Create a client with default search configuration.
 
-#### Parameters
+#### Init Options
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `supportedTlds` | `string[]` | all known TLDs | TLDs allowed in results. |
+| `defaultTlds` | `string[]` | `['com','ng']` | TLDs always included when generating names. |
+| `limit` | `number` | `20` | Maximum number of domains returned. |
+| `prefixes` | `string[]` | – | Prefixes used for generating variants. |
+| `suffixes` | `string[]` | – | Suffixes used for generating variants. |
+| `maxSynonyms` | `number` | `5` | Maximum number of synonyms to expand. |
+| `tldWeights` | `Record<string, number>` | – | Weights used when ranking TLDs. |
+
+### `client.search(options)`
+
+Search for domain names. `options` extend the init options so each call can override them.
+
+#### Search Options
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `query` | `string` | – | Search term to expand. |
 | `keywords` | `string[]` | – | Additional keywords to combine with the query. |
 | `location` | `string` | – | ISO country code used to include a ccTLD. |
-| `supportedTlds` | `string[]` | `['com','net','org']` | TLDs allowed in results. |
-| `defaultTlds` | `string[]` | `['com']` | TLDs always included when generating names. |
-| `limit` | `number` | `20` | Maximum number of domains returned. |
 | `debug` | `boolean` | `false` | When `true`, includes extra debug fields. |
 | `useAi` | `boolean` | `false` | Expand ideas using AI generation. |
+| `supportedTlds` | `string[]` | inherits from init | TLDs allowed in results. |
+| `defaultTlds` | `string[]` | inherits from init | TLDs always included when generating names. |
+| `limit` | `number` | inherits from init | Maximum number of domains returned. |
 
 #### Response
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `results` | `DomainResult[]` | List of generated domains ordered by score. |
+| `results` | `DomainCandidate[]` | List of generated domains ordered by score. |
 | `success` | `boolean` | Indicates whether the search completed successfully. |
 | `message` | `string?` | Error message when `success` is `false`. |
 | `includesAiGenerations` | `boolean` | Whether AI-generated names were requested. |
 | `metadata` | `object` | Runtime details about the search (see below). |
 
-**DomainResult**
+**DomainCandidate**
 
 | Field | Type | Description |
 | --- | --- | --- |

@@ -1,15 +1,22 @@
-export interface DomainSearchParams {
+export interface ClientInitOptions {
+  defaultTlds?: string[];
+  supportedTlds?: string[];
+  limit?: number;
+  prefixes?: string[];
+  suffixes?: string[];
+  maxSynonyms?: number;
+  tldWeights?: Record<string, number>;
+}
+
+export interface DomainSearchOptions extends ClientInitOptions {
   query: string;
   keywords?: string[];
   location?: string;
-  supportedTlds?: string[];
-  defaultTlds?: string[];
-  limit?: number;
   debug?: boolean;
   useAi?: boolean;
 }
 
-export interface DomainResult {
+export interface DomainCandidate {
   domain: string;
   suffix: string;
   score: number;
@@ -19,7 +26,7 @@ export interface DomainResult {
 }
 
 export interface SearchResponse {
-  results: DomainResult[];
+  results: DomainCandidate[];
   success: boolean;
   message?: string;
   includesAiGenerations: boolean;
@@ -30,12 +37,3 @@ export interface SearchResponse {
   };
 }
 
-export interface DomainSearchConfig {
-  defaultTlds: string[];
-  supportedTlds: string[];
-  limit: number;
-  prefixes?: string[];
-  suffixes?: string[];
-  maxSynonyms?: number;
-  tldWeights?: Record<string, number>;
-}

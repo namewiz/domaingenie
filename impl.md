@@ -75,17 +75,25 @@ Manages supported TLDs and location-based TLD recommendations.
 ### 3.1 Main Interface
 
 ```typescript
-interface DomainSearchParams {
-  query: string;                    // Required: search term(s)
-  keywords?: string[];              // Optional: seeding keywords
-  location?: string;                // Optional: 2-char country code
-  supported_tlds?: string[];        // Optional: limit to these TLDs
-  default_tlds?: string[];          // Optional: preferred TLDs
-  limit?: number;                   // Optional: max results (default: 20)
-  includeAiGenerated?: boolean;     // Optional: include AI suggestions
+interface ClientInitOptions {
+  defaultTlds?: string[];            // Preferred TLDs
+  supportedTlds?: string[];          // Allowed TLDs
+  limit?: number;                    // Max results (default: 20)
+  prefixes?: string[];               // Prefixes for generation
+  suffixes?: string[];               // Suffixes for generation
+  maxSynonyms?: number;              // Synonym expansion limit
+  tldWeights?: Record<string, number>; // TLD ranking weights
 }
 
-interface DomainResult {
+interface DomainSearchOptions extends ClientInitOptions {
+  query: string;                     // Required: search term(s)
+  keywords?: string[];               // Optional: seeding keywords
+  location?: string;                 // Optional: 2-char country code
+  debug?: boolean;                   // Include debug info
+  useAi?: boolean;                   // Include AI suggestions
+}
+
+interface DomainCandidate {
   domain: string;                   // Full domain name
   suffix: string;                   // TLD suffix
   score?: number;                   // Relevance score (internal)
@@ -94,7 +102,7 @@ interface DomainResult {
 }
 
 interface SearchResponse {
-  results: DomainResult[];
+  results: DomainCandidate[];
   success: boolean;
   message?: string;
   includes_ai_generations: boolean;
@@ -110,27 +118,27 @@ interface SearchResponse {
 
 ```typescript
 class DomainSearchClient {
-  constructor(config?: DomainSearchConfig);
-  
-  search(params: DomainSearchParams): Promise<SearchResponse>;
-  
-  setConfig(config: Partial<DomainSearchConfig>): void;
-  getConfig(): DomainSearchConfig;
+  constructor(initOptions?: ClientInitOptions);
+
+  search(options: DomainSearchOptions): Promise<SearchResponse>;
+
+  setInitOptions(options: ClientInitOptions): void;
+  getInitOptions(): ClientInitOptions;
 }
 ```
 
 ### 3.3 Configuration Interface
 
 ```typescript
-interface DomainSearchConfig {
-  defaultLimit: number;             // Default: 20
-  defaultTlds: string[];            // Default: ['com', 'net', 'org', 'io']
-  enableAiGeneration: boolean;      // Default: false
-  maxQueryLength: number;           // Default: 100
-  minDomainLength: number;          // Default: 2
-  maxDomainLength: number;          // Default: 63
-  rankingWeights: RankingWeights;   // Scoring configuration
-  tldData: TldDatabase;            // TLD information database
+interface ClientInitOptions {
+  defaultLimit?: number;             // Default: 20
+  defaultTlds?: string[];            // Default: ['com', 'net', 'org', 'io']
+  enableAiGeneration?: boolean;      // Default: false
+  maxQueryLength?: number;           // Default: 100
+  minDomainLength?: number;          // Default: 2
+  maxDomainLength?: number;          // Default: 63
+  rankingWeights?: RankingWeights;   // Scoring configuration
+  tldData?: TldDatabase;             // TLD information database
 }
 
 interface RankingWeights {
@@ -171,7 +179,7 @@ class QueryProcessor {
 
 ```typescript
 class DomainGenerator {
-  generate(processedQuery: ProcessedQuery, params: DomainSearchParams): string[] {
+  generate(processedQuery: ProcessedQuery, params: DomainSearchOptions): string[] {
     const strategies = [
       this.exactMatchStrategy,        // foo.bar for "foo bar"
       this.concatenationStrategy,     // foobar.com for "foo bar"
@@ -199,7 +207,7 @@ class DomainGenerator {
 
 ```typescript
 class RankingEngine {
-  rank(domains: DomainResult[], params: DomainSearchParams): DomainResult[] {
+  rank(domains: DomainCandidate[], params: DomainSearchOptions): DomainCandidate[] {
     return domains
       .map(domain => ({
         ...domain,
@@ -209,7 +217,7 @@ class RankingEngine {
       .slice(0, params.limit || 20);
   }
   
-  private calculateScore(domain: DomainResult, params: DomainSearchParams): number {
+  private calculateScore(domain: DomainCandidate, params: DomainSearchOptions): number {
     let score = 0;
     const weights = this.config.rankingWeights;
     
@@ -259,7 +267,7 @@ class TldManager {
     restrictions?: string[];      // Registration restrictions
   }
   
-  getSupportedTlds(params?: DomainSearchParams): string[] {
+  getSupportedTlds(params?: DomainSearchOptions): string[] {
     // Return filtered TLDs based on parameters
   }
   

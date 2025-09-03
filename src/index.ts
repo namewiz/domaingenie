@@ -106,7 +106,7 @@ export class DomainSearchClient {
           const score = scoreDomain(parts.join('.'), suffix, cc, {
             tldWeights: this.config.tldWeights,
           });
-          results.push({ domain, suffix: '.' + suffix, score, isAvailable: false, variantTypes: types });
+          results.push({ domain, suffix, score, isAvailable: false, variantTypes: types });
         }
         continue;
       }
@@ -114,7 +114,7 @@ export class DomainSearchClient {
         if (supportedTlds && !supportedTlds.includes(tld)) continue;
         const domain = `${label}.${tld}`;
         const score = scoreDomain(label, tld, cc, { tldWeights: this.config.tldWeights });
-        results.push({ domain, suffix: '.' + tld, score, isAvailable: false, variantTypes: types });
+        results.push({ domain, suffix: tld, score, isAvailable: false, variantTypes: types });
       }
     }
 

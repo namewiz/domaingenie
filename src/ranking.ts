@@ -22,7 +22,6 @@ export function scoreDomain(label: string, tld: string, location?: string, confi
   const numberPenalty = config.numberPenalty ?? 5;
   score -= hyphenCount * hyphenPenalty;
   score -= numCount * numberPenalty;
-  if (containsNumber(label)) score -= numberPenalty;
 
   const ratio = vowelRatio(label);
   score += ratio * 10;
@@ -36,5 +35,7 @@ export function scoreDomain(label: string, tld: string, location?: string, confi
   if (location && suffix === location.toLowerCase()) {
     score += 20;
   }
+
+  // todo: add isDictionaryWord or isComposedOfDictionaryWords.
   return score;
 }

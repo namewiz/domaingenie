@@ -55,7 +55,7 @@ Search for domain names based on a query string.
 | Field | Type | Description |
 | --- | --- | --- |
 | `domain` | `string` | Fully qualified domain name. |
-| `suffix` | `string` | TLD including the leading dot. |
+| `suffix` | `string` | TLD without the leading dot. |
 | `score` | `number` | Relative ranking score for the domain. |
 | `isAvailable` | `boolean?` | Domain availability flag (only with `debug`). |
 | `aiGenerated` | `boolean?` | Marks names produced by AI. |

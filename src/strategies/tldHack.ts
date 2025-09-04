@@ -7,7 +7,11 @@ import { DomainSearchOptions, DomainCandidate, GenerationStrategy } from '../typ
 
 export class TldHackStrategy implements GenerationStrategy {
   async generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]> {
-    const tlds = Array.from(new Set([...(opts.supportedTlds || []), ...(opts.defaultTlds || [])])).map(t => t.toLowerCase());
+    const tlds = Array.from(new Set([
+      opts.defaultTld,
+      ...(opts.preferredTlds || []),
+      ...(opts.supportedTlds || []),
+    ])).map(t => t.toLowerCase());
     if (!tlds.length) return [];
     const tokens = normalizeTokens(opts.query);
     const keywords = (opts.keywords || []).map(k => k.toLowerCase());

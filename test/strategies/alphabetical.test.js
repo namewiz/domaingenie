@@ -4,7 +4,8 @@ import { AlphabeticalStrategy } from '../../dist/index.js';
 const opts = {
   query: 'z a',
   supportedTlds: ['com'],
-  defaultTlds: [],
+  defaultTld: 'com',
+  preferredTlds: [],
   maxSynonyms: 1,
 };
 

@@ -7,7 +7,8 @@ test('generator produces permutations, hyphenated and affix variants', async t =
     prefixes: ['pre'],
     suffixes: ['suf'],
     supportedTlds: ['com'],
-    defaultTlds: [],
+    defaultTld: 'com',
+    preferredTlds: [],
     maxSynonyms: 1,
   });
   const domains = candidates.map(c => c.domain);
@@ -22,7 +23,8 @@ test('generator produces alphabetical and tldHack variants', async t => {
   const alpha = await generateCandidates({
     query: 'z a',
     supportedTlds: ['com'],
-    defaultTlds: [],
+    defaultTld: 'com',
+    preferredTlds: [],
     maxSynonyms: 1,
   });
   t.true(alpha.some(c => c.domain === 'az.com'));
@@ -30,7 +32,8 @@ test('generator produces alphabetical and tldHack variants', async t => {
   const hack = await generateCandidates({
     query: 'brandly',
     supportedTlds: ['ly'],
-    defaultTlds: [],
+    defaultTld: 'com',
+    preferredTlds: [],
     maxSynonyms: 1,
   });
   t.true(hack.some(c => c.domain === 'brand.ly'));

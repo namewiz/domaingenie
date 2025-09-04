@@ -30,7 +30,8 @@ The Fast Domain Search Library is a pure JavaScript/TypeScript module that gener
 | `keywords` | string[] | No | Additional seed keywords. These can include niche words or synonyms provided by the caller for better relevance. |
 | `location` | string (ISO‑3166‑1 alpha‑2) | No | Overrides IP‑based location detection and influences ccTLD suggestions. For example "de" suggests .de domains. |
 | `supportedTlds` | string[] | No | Limit suggestions to these TLDs only. Accepts second‑level ccTLDs (e.g. "com.ng"). |
-| `defaultTlds` | string[] | No | List of preferred TLDs to include at the top of the results. The first element becomes the default when no extension is present in the query. |
+| `defaultTld` | string | No | Primary TLD appended when no extension is supplied; always included in results. |
+| `preferredTlds` | string[] | No | TLDs generators should prioritise. Can be set from location, language or industry. |
 | `limit` | number | No | Maximum number of suggestions to return (default 20). |
 
 All string fields are case‑insensitive. The library normalizes TLDs to lower case and trims whitespace.
@@ -70,7 +71,7 @@ The library is organised into discrete modules that communicate through well‑d
 
 **Candidate Domain Generator** – produces raw domain strings by combining tokens and synonyms in various ways (concatenation, prefix/suffix, alphabet combinations etc.). It also handles TLD hacks, misspellings and exact‑match variants.
 
-**TLD Filter & Localisation** – restricts TLDs to those specified in `supportedTlds` or falls back to `defaultTlds` and location‑derived ccTLDs. Generic TLDs like .com, .net and .org are widely recognised and trusted, while ccTLDs can boost local SEO and credibility.
+**TLD Filter & Localisation** – restricts TLDs to those specified in `supportedTlds` or falls back to the `defaultTld`, any `preferredTlds` and location‑derived ccTLDs. Generic TLDs like .com, .net and .org are widely recognised and trusted, while ccTLDs can boost local SEO and credibility.
 
 **Ranking Engine** – scores each candidate based on relevance, length, pronounceability, hyphen/number penalties and TLD weights. Short, pronounceable names without hyphens/numbers and with popular TLDs rank higher.
 
@@ -114,7 +115,7 @@ Top‑level domains strongly influence trust and memorability. Shopify advises c
 
 Country‑code TLDs (ccTLDs) help target a website to a specific region and increase credibility among local users. The library determines a default ccTLD based on the caller's IP address (when available) or the location parameter. If `supportedTlds` is supplied, ccTLDs not in this list are ignored.
 
-The `defaultTlds` array allows the caller to specify preferred extensions. When no extension is part of a generated label, the first element of `defaultTlds` is appended. If omitted, .com is assumed.
+The `defaultTld` option sets the extension appended when a generated label lacks one. Additional extensions can be passed via `preferredTlds` to prioritise them during generation. If `defaultTld` is omitted, .com is assumed.
 
 ## 6. Ranking Engine
 
@@ -142,7 +143,8 @@ async function search(
     keywords?: string[];
     location?: string;
     supportedTlds?: string[];
-    defaultTlds?: string[];
+    defaultTld?: string;
+    preferredTlds?: string[];
     limit?: number;
   }
 ): Promise<DomainSearchResult>;
@@ -155,7 +157,7 @@ Internally, the library uses TypeScript interfaces for strong typing. Modules ar
 - Normalizes query and keywords to lowercase.
 - Splits the query into tokens based on whitespace and punctuation.
 - Validates ISO‑3166 country codes and TLD formats (e.g. using regex `/^[a-z]{2}(\.[a-z]{2,6})?$/`).
-- Sets defaults for `supportedTlds`, `defaultTlds` and `limit` when unspecified (e.g. `supportedTlds = ["com", "net", "org"]`, `defaultTlds = ["com"]`, `limit = 20`).
+- Sets defaults for `supportedTlds`, `defaultTld`, `preferredTlds` and `limit` when unspecified (e.g. `supportedTlds = ["com", "net", "org"]`, `defaultTld = "com"`, `preferredTlds = []`, `limit = 20`).
 
 ### 7.2 Synonym/Keyword Expansion Module
 
@@ -167,7 +169,7 @@ Internally, the library uses TypeScript interfaces for strong typing. Modules ar
 
 - Accepts an array of tokens and expanded synonyms.
 - Applies the strategies described in §4 to produce candidate labels. Each candidate records the transformations used (e.g. `variantType: "prefix-suffix"` or `"alphabet-combo"`) to aid future analytics.
-- Appends TLDs from `defaultTlds` and `supportedTlds`. For each label that does not already end with a supported TLD, the generator yields `label + "." + tld`. For labels that include a dot (from a TLD hack), the suffix is preserved.
+- Appends TLDs from `supportedTlds` along with the `defaultTld` and any `preferredTlds`. For each label that does not already end with a supported TLD, the generator yields `label + "." + tld`. For labels that include a dot (from a TLD hack), the suffix is preserved.
 - Ensures uniqueness by storing generated strings in a Set.
 
 ### 7.4 TLD Filter & Localisation

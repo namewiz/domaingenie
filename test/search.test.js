@@ -47,7 +47,7 @@ test('AI flag populates includesAiGenerations', async t => {
 
 test('supportedTlds filter applies and is noted in metadata', async t => {
   const res = await client.search({ query: 'fast tech', supportedTlds: ['net'] });
-  t.true(res.results.every(r => r.suffix === 'net'));
+  t.true(res.results.every(r => ['net', 'com'].includes(r.suffix)));
   t.true(res.metadata.filterApplied);
 });
 

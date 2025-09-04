@@ -12,7 +12,8 @@ const TLD_MAP: Record<string, string | boolean> = {
 };
 
 const DEFAULT_INIT_OPTIONS: Required<ClientInitOptions> = {
-  defaultTlds: ['com', 'ng'],
+  defaultTld: 'com',
+  preferredTlds: [],
   supportedTlds: Object.keys(TLD_MAP),
   limit: 20,
   // more here - https://gist.github.com/marcanuy/06cb00bc36033cd12875
@@ -74,20 +75,25 @@ export class DomainSearchClient {
 
     if (options.keywords && !Array.isArray(options.keywords)) return error('keywords must be an array');
     if (options.supportedTlds && !Array.isArray(options.supportedTlds)) return error('supportedTlds must be an array');
-    if (options.defaultTlds && !Array.isArray(options.defaultTlds)) return error('defaultTlds must be an array');
+    if (options.preferredTlds && !Array.isArray(options.preferredTlds)) return error('preferredTlds must be an array');
+    if (options.defaultTld && typeof options.defaultTld !== 'string') return error('defaultTld must be a string');
 
     const supportedTlds = (cfg.supportedTlds || []).map(normalizeTld);
-    const defaultTlds = (cfg.defaultTlds || []).map(normalizeTld);
-    for (const t of [...supportedTlds, ...defaultTlds]) {
+    const preferredTlds = (cfg.preferredTlds || []).map(normalizeTld);
+    const defaultTld = normalizeTld(cfg.defaultTld || 'com');
+    for (const t of [...supportedTlds, ...preferredTlds, defaultTld]) {
       if (!isValidTld(t)) return error(`invalid tld: ${t}`);
     }
 
     const cc = getCcTld(options.location);
     if (cc && !supportedTlds.includes(cc)) supportedTlds.push(cc);
-    if (cc && !defaultTlds.includes(cc)) defaultTlds.push(cc);
+    if (cc && !preferredTlds.includes(cc)) preferredTlds.push(cc);
+
+    if (!supportedTlds.includes(defaultTld)) supportedTlds.push(defaultTld);
 
     cfg.supportedTlds = supportedTlds;
-    cfg.defaultTlds = defaultTlds;
+    cfg.preferredTlds = preferredTlds;
+    cfg.defaultTld = defaultTld;
 
     const candidates = await generateCandidates(cfg);
 

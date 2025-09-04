@@ -5,7 +5,8 @@ const base = {
   prefixes: ['pre'],
   suffixes: ['suf'],
   supportedTlds: ['com'],
-  defaultTlds: [],
+  defaultTld: 'com',
+  preferredTlds: [],
   maxSynonyms: 1,
 };
 

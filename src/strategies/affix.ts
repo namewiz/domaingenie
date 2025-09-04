@@ -9,7 +9,11 @@ export class AffixStrategy implements GenerationStrategy {
   async generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]> {
     const prefixes = opts.prefixes ?? [];
     const suffixes = opts.suffixes ?? [];
-    const tlds = Array.from(new Set([...(opts.supportedTlds || []), ...(opts.defaultTlds || [])]));
+    const tlds = Array.from(new Set([
+      opts.defaultTld,
+      ...(opts.preferredTlds || []),
+      ...(opts.supportedTlds || []),
+    ]));
     if ((!prefixes.length && !suffixes.length) || !tlds.length) return [];
 
     const tokens = normalizeTokens(opts.query);

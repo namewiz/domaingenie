@@ -2,7 +2,10 @@
 
 /** Configuration provided when initializing the client. */
 export interface ClientInitOptions {
-  defaultTlds?: string[];
+  /** Primary TLD used when none is specified in a query. */
+  defaultTld?: string;
+  /** Additional TLDs to prioritise when generating candidates. */
+  preferredTlds?: string[];
   supportedTlds?: string[];
   limit?: number;
   prefixes?: string[];

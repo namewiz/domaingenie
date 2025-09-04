@@ -13,7 +13,11 @@ export class AlphabeticalStrategy implements GenerationStrategy {
     const alphaTokens = [...tokens].sort();
     const alphaLists = alphaTokens.map(t => expandSynonyms(t, maxSynonyms));
     const labels = unique(combine(alphaLists, ''));
-    const tlds = Array.from(new Set([...(opts.supportedTlds || []), ...(opts.defaultTlds || [])]));
+    const tlds = Array.from(new Set([
+      opts.defaultTld,
+      ...(opts.preferredTlds || []),
+      ...(opts.supportedTlds || []),
+    ]));
     if (!tlds.length) return [];
     const results: Partial<DomainCandidate>[] = [];
     for (const label of labels) {

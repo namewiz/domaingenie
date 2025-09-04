@@ -33,7 +33,8 @@ Create a client with default search configuration.
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `supportedTlds` | `string[]` | all known TLDs | TLDs allowed in results. |
-| `defaultTlds` | `string[]` | `['com','ng']` | TLDs always included when generating names. |
+| `defaultTld` | `string` | `'com'` | TLD used when a label has no extension; always included. |
+| `preferredTlds` | `string[]` | `[]` | TLDs generators prioritise when producing candidates; often set from user location, language or industry. |
 | `limit` | `number` | `20` | Maximum number of domains returned. |
 | `prefixes` | `string[]` | – | Prefixes used for generating variants. |
 | `suffixes` | `string[]` | – | Suffixes used for generating variants. |
@@ -54,7 +55,8 @@ Search for domain names. `options` extend the init options so each call can over
 | `debug` | `boolean` | `false` | When `true`, includes extra debug fields. |
 | `useAi` | `boolean` | `false` | Expand ideas using AI generation. |
 | `supportedTlds` | `string[]` | inherits from init | TLDs allowed in results. |
-| `defaultTlds` | `string[]` | inherits from init | TLDs always included when generating names. |
+| `defaultTld` | `string` | inherits from init | TLD appended when no extension is present. |
+| `preferredTlds` | `string[]` | inherits from init | TLDs generators prioritise when producing candidates; can reflect user location or industry. |
 | `limit` | `number` | inherits from init | Maximum number of domains returned. |
 
 #### Response

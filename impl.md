@@ -78,7 +78,8 @@ Manages supported TLDs and location-based TLD recommendations.
 
 ```typescript
 interface ClientInitOptions {
-  defaultTlds?: string[];            // Preferred TLDs
+  defaultTld?: string;               // Primary TLD appended by default
+  preferredTlds?: string[];          // TLDs to prioritise
   supportedTlds?: string[];          // Allowed TLDs
   limit?: number;                    // Max results (default: 20)
   prefixes?: string[];               // Prefixes for generation
@@ -134,7 +135,8 @@ class DomainSearchClient {
 ```typescript
 interface ClientInitOptions {
   defaultLimit?: number;             // Default: 20
-  defaultTlds?: string[];            // Default: ['com', 'net', 'org', 'io']
+  defaultTld?: string;               // Default: 'com'
+  preferredTlds?: string[];          // Default: []
   enableAiGeneration?: boolean;      // Default: false
   maxQueryLength?: number;           // Default: 100
   minDomainLength?: number;          // Default: 2
@@ -519,7 +521,8 @@ console.log(results.results);
 ### 13.2 Advanced Usage
 ```typescript
 const client = new DomainSearchClient({
-  defaultTlds: ['com', 'io', 'dev'],
+  defaultTld: 'com',
+  preferredTlds: ['io', 'dev'],
   enableAiGeneration: true,
   rankingWeights: {
     exactMatch: 100,

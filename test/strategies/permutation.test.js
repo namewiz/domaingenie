@@ -4,7 +4,8 @@ import { PermutationStrategy } from '../../dist/index.js';
 const opts = {
   query: 'fast tech',
   supportedTlds: ['com'],
-  defaultTlds: [],
+  defaultTld: 'com',
+  preferredTlds: [],
   maxSynonyms: 1,
 };
 

@@ -3,7 +3,8 @@ import { TldHackStrategy } from '../../dist/index.js';
 
 const base = {
   supportedTlds: ['ly'],
-  defaultTlds: [],
+  defaultTld: 'com',
+  preferredTlds: [],
   maxSynonyms: 1,
 };
 

@@ -32,7 +32,11 @@ export class PermutationStrategy implements GenerationStrategy {
       }
     });
 
-    const tlds = Array.from(new Set([...(opts.supportedTlds || []), ...(opts.defaultTlds || [])]));
+    const tlds = Array.from(new Set([
+      opts.defaultTld,
+      ...(opts.preferredTlds || []),
+      ...(opts.supportedTlds || []),
+    ]));
     if (!tlds.length) return [];
 
     const map = new Map<string, Partial<DomainCandidate>>();

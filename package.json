@@ -1,5 +1,5 @@
 {
-  "name": "ai-domain-generator",
+  "name": "domaingenie",
   "version": "0.0.3",
   "description": "A fast and intelligent domain name generator from natural language",
   "main": "dist/index.js",
@@ -8,18 +8,26 @@
     "build": "esbuild src/index.ts --bundle --outdir=dist --platform=node --format=esm",
     "test": "npm run build && ava"
   },
+  "homepage": "https://namewiz.github.io/domaingenie",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/justiceo/domain-search.git"
+    "url": "git+https://github.com/namewiz/domaingenie.git"
   },
   "bugs": {
-    "url": "https://github.com/justiceo/domain-search/issues"
+    "url": "https://github.com/namewiz/domaingenie/issues"
   },
-  "author": "Justice Ogbonna",
+  "author": "Justice Ogbonna <dev@justiceo.com>",
+  "keywords": [
+    "domain-name",
+    "domain-generator",
+    "name-generator",
+    "natural-language",
+    "ai-generator"
+  ],
   "exports": {
     ".": "./dist/index.js"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "synonyms": "^1.0.1"
   },

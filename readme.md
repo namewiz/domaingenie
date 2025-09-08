@@ -1,6 +1,11 @@
-# AI Domain Generator
+# Domain Genie
 
-A simple TypeScript library for generating and ranking domain name suggestions.
+[![Build](https://github.com/namewiz/domaingenie/actions/workflows/build.yml/badge.svg)](https://github.com/namewiz/domaingenie/actions/workflows/build.yml)
+[![Test](https://github.com/namewiz/domaingenie/actions/workflows/test.yml/badge.svg)](https://github.com/namewiz/domaingenie/actions/workflows/test.yml)
+[![NPM](http://img.shields.io/npm/v/domaingenie.svg)](https://www.npmjs.com/package/domaingenie)
+[![License](https://img.shields.io/npm/l/domaingenie.svg)](https://github.com/namewiz/domaingenie/blob/main/LICENSE)
+
+A library for generating and ranking domain name suggestions including AI-generations.
 
 ## Features
 - Expands queries with synonyms

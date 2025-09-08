@@ -1,9 +1,9 @@
-import { DomainSearchOptions, DomainCandidate, SearchResponse, ClientInitOptions } from './types';
-import { isValidTld, getCcTld, normalizeTld, normalizeTokens } from './utils';
+import synonymsLib from 'synonyms';
 import { generateCandidates } from './generator';
 import { scoreDomain } from './ranking';
 import tlds from "./tlds.json" assert { type: "json" };
-import synonymsLib from 'synonyms';
+import { ClientInitOptions, DomainCandidate, DomainSearchOptions, SearchResponse } from './types';
+import { getCcTld, isValidTld, normalizeTld, normalizeTokens } from './utils';
 
 const TLD_MAP: Record<string, string | boolean> = {
   ...(tlds as any).popular,
@@ -76,7 +76,7 @@ function error(message: string): SearchResponse {
 export class DomainSearchClient {
   private init: Required<ClientInitOptions>;
 
-  constructor(initOptions: ClientInitOptions = {}) {
+  constructor (initOptions: ClientInitOptions = {}) {
     this.init = { ...DEFAULT_INIT_OPTIONS, ...initOptions };
   }
 
@@ -228,18 +228,12 @@ type PreparedRequest = {
   limit: number;
 };
 
-export type {
-  DomainSearchOptions,
-  ClientInitOptions,
-  DomainCandidate,
-  SearchResponse,
-  SearchMetadata,
-  GenerationStrategy,
-} from './types';
 export { generateCandidates } from './generator';
 export {
-  PermutationStrategy,
-  AlphabeticalStrategy,
-  AffixStrategy,
-  TldHackStrategy,
+  AffixStrategy, AlphabeticalStrategy, PermutationStrategy, TldHackStrategy
 } from './strategies';
+export type {
+  ClientInitOptions,
+  DomainCandidate, DomainSearchOptions, GenerationStrategy, SearchMetadata, SearchResponse
+} from './types';
+

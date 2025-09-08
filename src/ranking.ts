@@ -1,5 +1,6 @@
-import { vowelRatio } from './utils';
 import synonymsLib from 'synonyms';
+import type { DomainCandidate } from './types';
+import { vowelRatio } from './utils';
 
 const DEFAULT_TLD_WEIGHTS: Record<string, number> = {
   com: 20,
@@ -75,7 +76,6 @@ const DEFAULT_RANKING_CONFIG: RankingConfig = {
   repeatedLettersPenalty: 5,
   locationTldBonus: 20,
 };
-import type { DomainCandidate } from './types';
 
 /**
  * Ranker: interleaves candidates across TLDs and strategies while
@@ -159,7 +159,7 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
 
   return out;
 }
- export function scoreDomain(label: string, tld: string, location?: string, config: RankingConfig = {}): number {
+export function scoreDomain(label: string, tld: string, location?: string, config: RankingConfig = {}): number {
   const cfg: RankingConfig = { ...DEFAULT_RANKING_CONFIG, ...config };
   let score = cfg.baseScore!;
   const len = label.length;

@@ -2,8 +2,8 @@
  * Generates alphabetical domain combinations from tokens using synonyms.
 */
 import { expandSynonyms } from '../synonyms';
-import { unique, normalizeTokens, combine } from '../utils';
-import { DomainSearchOptions, DomainCandidate, GenerationStrategy } from '../types';
+import { DomainCandidate, DomainSearchOptions, GenerationStrategy } from '../types';
+import { combine, normalizeTokens, unique } from '../utils';
 
 export class AlphabeticalStrategy implements GenerationStrategy {
   async generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]> {

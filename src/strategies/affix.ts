@@ -2,8 +2,8 @@
  * Generates domain variants by applying prefixes and suffixes to token combinations.
 */
 import { expandSynonyms } from '../synonyms';
+import { DomainCandidate, DomainSearchOptions, GenerationStrategy } from '../types';
 import { combine, normalizeTokens } from '../utils';
-import { DomainSearchOptions, DomainCandidate, GenerationStrategy } from '../types';
 
 export class AffixStrategy implements GenerationStrategy {
   async generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]> {

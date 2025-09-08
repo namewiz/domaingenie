@@ -2,8 +2,8 @@
  * Generates domain hacks by inserting dots before matching TLD endings.
 */
 import { expandSynonyms } from '../synonyms';
+import { DomainCandidate, DomainSearchOptions, GenerationStrategy } from '../types';
 import { combine, normalizeTokens } from '../utils';
-import { DomainSearchOptions, DomainCandidate, GenerationStrategy } from '../types';
 
 export class TldHackStrategy implements GenerationStrategy {
   async generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]> {

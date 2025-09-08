@@ -1,8 +1,8 @@
 /**
  * Generates domain permutations and optional hyphenated combinations from tokens and keywords.
 */
-import { normalizeTokens, combine, permute } from '../utils';
-import { DomainSearchOptions, DomainCandidate, GenerationStrategy } from '../types';
+import { DomainCandidate, DomainSearchOptions, GenerationStrategy } from '../types';
+import { combine, normalizeTokens, permute } from '../utils';
 
 export class PermutationStrategy implements GenerationStrategy {
 

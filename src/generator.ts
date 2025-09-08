@@ -1,12 +1,12 @@
 import {
-  PermutationStrategy,
-  AlphabeticalStrategy,
   AffixStrategy,
+  AlphabeticalStrategy,
+  PermutationStrategy,
   TldHackStrategy,
 } from './strategies';
-import { DomainSearchOptions, DomainCandidate, GenerationStrategy } from './types';
+import { DomainCandidate, DomainSearchOptions, GenerationStrategy } from './types';
 
-export interface GenConfig {}
+export interface GenConfig { }
 
 export async function generateCandidates(
   options: DomainSearchOptions,

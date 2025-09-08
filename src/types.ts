@@ -18,6 +18,10 @@ export interface DomainSearchOptions extends ClientInitOptions {
   location?: string;
   debug?: boolean;
   useAi?: boolean;
+  // Whether to generate hyphenated label variants (e.g., foo-bar)
+  includeHyphenated?: boolean;
+  // Precomputed synonyms per normalized token (filled by search())
+  synonyms?: Record<string, string[]>;
 }
 
 // Results --------------------------------------------------------------------
@@ -55,4 +59,3 @@ export interface SearchResponse {
 export interface GenerationStrategy {
   generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]>;
 }
-

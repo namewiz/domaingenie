@@ -3,22 +3,17 @@ import {
   AlphabeticalStrategy,
   AffixStrategy,
   TldHackStrategy,
-  PermutationStrategyOptions,
 } from './strategies';
 import { DomainSearchOptions, DomainCandidate, GenerationStrategy } from './types';
 
-export interface GenConfig {
-  strategyOptions?: {
-    permutation?: PermutationStrategyOptions;
-  };
-}
+export interface GenConfig {}
 
 export async function generateCandidates(
   options: DomainSearchOptions,
-  config: GenConfig = {},
+  _config: GenConfig = {},
 ): Promise<Partial<DomainCandidate & { strategy: string }>[]> {
   const strategies: { name: string; strategy: GenerationStrategy }[] = [
-    { name: 'permutation', strategy: new PermutationStrategy(config.strategyOptions?.permutation) },
+    { name: 'permutation', strategy: new PermutationStrategy() },
     { name: 'alphabetical', strategy: new AlphabeticalStrategy() },
     { name: 'affix', strategy: new AffixStrategy() },
     { name: 'tldHack', strategy: new TldHackStrategy() },

@@ -1,33 +1,24 @@
 /**
  * Generates domain permutations and optional hyphenated combinations from tokens and keywords.
 */
-import { expandSynonyms } from '../synonyms';
 import { normalizeTokens, combine, permute } from '../utils';
 import { DomainSearchOptions, DomainCandidate, GenerationStrategy } from '../types';
 
-export interface PermutationStrategyOptions {
-  includeHyphenated?: boolean;
-}
-
 export class PermutationStrategy implements GenerationStrategy {
-  private opts: Required<PermutationStrategyOptions>;
-
-  constructor(opts: PermutationStrategyOptions = {}) {
-    this.opts = { includeHyphenated: true, ...opts };
-  }
 
   async generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]> {
     const tokens = normalizeTokens(opts.query);
     const keywords = (opts.keywords || []).map(k => k.toLowerCase());
-    const maxSynonyms = opts.maxSynonyms ?? 5;
-    const synLists = tokens.map(t => expandSynonyms(t, maxSynonyms));
+    // Use precomputed synonyms provided by index.ts for speed; fallback to token itself
+    const synLists = tokens.map(t => (opts.synonyms && opts.synonyms[t]) ? opts.synonyms[t] : [t]);
     if (keywords.length) synLists.push(keywords);
     const perms = permute(synLists);
 
     const labels = new Set<string>();
+    const includeHyphenated = opts.includeHyphenated ?? true;
     perms.forEach(lists => {
       for (const l of combine(lists, '')) labels.add(l);
-      if (this.opts.includeHyphenated && lists.length > 1) {
+      if (includeHyphenated && lists.length > 1) {
         for (const l of combine(lists, '-')) labels.add(l);
       }
     });

@@ -1,8 +1,9 @@
 import { DomainSearchOptions, DomainCandidate, SearchResponse, ClientInitOptions } from './types';
-import { isValidTld, getCcTld, normalizeTld } from './utils';
+import { isValidTld, getCcTld, normalizeTld, normalizeTokens } from './utils';
 import { generateCandidates } from './generator';
 import { scoreDomain } from './ranking';
 import tlds from "./tlds.json" assert { type: "json" };
+import synonymsLib from 'synonyms';
 
 const TLD_MAP: Record<string, string | boolean> = {
   ...(tlds as any).popular,
@@ -39,6 +40,29 @@ const DEFAULT_INIT_OPTIONS: Required<ClientInitOptions> = {
   },
 };
 
+// Local synonym expansion with memoization
+const SYN_CACHE = new Map<string, string[]>();
+function expandSynonyms(token: string, max = 5, extra: string[] = []): string[] {
+  const base = token.toLowerCase();
+  if (SYN_CACHE.has(base)) return SYN_CACHE.get(base)!;
+  let list: string[] = [base];
+  try {
+    const syn = synonymsLib(base);
+    if (syn) {
+      for (const key of Object.keys(syn as any)) {
+        const arr = (syn as any)[key] as string[];
+        if (Array.isArray(arr)) list.push(...arr);
+      }
+    }
+  } catch {
+    // ignore library errors
+  }
+  if (extra && extra.length) list.push(...extra.map(e => e.toLowerCase()));
+  const uniqueList = Array.from(new Set(list.filter(w => w && w.length <= 15))).slice(0, max);
+  SYN_CACHE.set(base, uniqueList);
+  return uniqueList;
+}
+
 function error(message: string): SearchResponse {
   return {
     results: [],
@@ -66,20 +90,46 @@ export class DomainSearchClient {
 
   async search(options: DomainSearchOptions): Promise<SearchResponse> {
     const start = Date.now();
-    if (!options.query || !options.query.trim()) return error('query is required');
 
-    const cfg = { ...this.init, ...options };
+    // 1) Process search request
+    let prepared: PreparedRequest;
+    try {
+      prepared = this.processRequest(options);
+    } catch (e: any) {
+      return error(e?.message || 'invalid request');
+    }
+
+    // 2) Generate candidates
+    const rawCandidates = await generateCandidates(prepared.cfg);
+
+    // 3) Score candidates
+    const scored = this.scoreCandidates(rawCandidates, prepared);
+
+    // 4) Rank candidates
+    const ranked = this.rankCandidates(scored, prepared.limit);
+
+    // 5) Return results
+    const end = Date.now();
+    const response = this.buildResponse(ranked, options, end - start, scored.length, !!options.supportedTlds);
+    return response;
+  }
+
+  // Step 1: Process search request (validate, normalize, enrich)
+  private processRequest(options: DomainSearchOptions): PreparedRequest {
+    if (!options.query || !options.query.trim()) throw new Error('query is required');
+
+    const cfg = { ...this.init, ...options } as DomainSearchOptions;
     const limit = cfg.limit ?? this.init.limit;
-    if (!Number.isFinite(limit) || limit <= 0) return error('limit must be positive');
+    if (!Number.isFinite(limit) || (limit as number) <= 0) throw new Error('limit must be positive');
 
-    if (options.keywords && !Array.isArray(options.keywords)) return error('keywords must be an array');
-    if (options.supportedTlds && !Array.isArray(options.supportedTlds)) return error('supportedTlds must be an array');
-    if (options.defaultTlds && !Array.isArray(options.defaultTlds)) return error('defaultTlds must be an array');
+    if (options.keywords && !Array.isArray(options.keywords)) throw new Error('keywords must be an array');
+    if (options.supportedTlds && !Array.isArray(options.supportedTlds)) throw new Error('supportedTlds must be an array');
+    if (options.defaultTlds && !Array.isArray(options.defaultTlds)) throw new Error('defaultTlds must be an array');
 
     const supportedTlds = (cfg.supportedTlds || []).map(normalizeTld);
     const defaultTlds = (cfg.defaultTlds || []).map(normalizeTld);
     for (const t of [...supportedTlds, ...defaultTlds]) {
-      if (!isValidTld(t)) return error(`invalid tld: ${t}`);
+      if (!isValidTld(t)) throw new Error(`invalid tld: ${t}`);
     }
 
     const cc = getCcTld(options.location);
@@ -89,17 +139,44 @@ export class DomainSearchClient {
     cfg.supportedTlds = supportedTlds;
     cfg.defaultTlds = defaultTlds;
 
-    const candidates = await generateCandidates(cfg);
+    // Precompute synonyms for tokens to avoid recomputation in strategies
+    const tokens = normalizeTokens(cfg.query);
+    const maxSynonyms = cfg.maxSynonyms ?? 5;
+    const synMap: Record<string, string[]> = {};
+    for (const t of tokens) {
+      synMap[t] = expandSynonyms(t, maxSynonyms);
+    }
+    cfg.synonyms = synMap;
 
+    return { cfg, cc, limit: limit as number };
+  }
+
+  // Step 3: Score candidates (filter and score)
+  private scoreCandidates(
+    candidates: Partial<DomainCandidate & { strategy?: string }>[],
+    prepared: PreparedRequest,
+  ): DomainCandidate[] {
+    const { cfg, cc } = prepared;
+    const supported = cfg.supportedTlds || [];
     const results: DomainCandidate[] = [];
     for (const cand of candidates) {
       if (!cand.domain || !cand.suffix) continue;
-      if (!supportedTlds.includes(cand.suffix)) continue;
+      if (!supported.includes(cand.suffix)) continue;
       const label = cand.domain.slice(0, -(cand.suffix.length + 1));
       const score = scoreDomain(label, cand.suffix, cc, { tldWeights: cfg.tldWeights });
-      results.push({ domain: cand.domain, suffix: cand.suffix, strategy: cand.strategy, score, isAvailable: false });
+      results.push({
+        domain: cand.domain,
+        suffix: cand.suffix,
+        strategy: cand.strategy,
+        score,
+        isAvailable: false,
+      });
     }
+    return results;
+  }
 
+  // Step 4: Rank candidates (dedupe by domain, sort by score desc, limit)
+  private rankCandidates(results: DomainCandidate[], limit: number): DomainCandidate[] {
     const resultMap = new Map<string, DomainCandidate>();
     for (const r of results) {
       const existing = resultMap.get(r.domain);
@@ -111,25 +188,45 @@ export class DomainSearchClient {
     }
     const uniqueResults = Array.from(resultMap.values());
     uniqueResults.sort((a, b) => b.score - a.score);
+    return uniqueResults.slice(0, limit);
+  }
 
-    let finalResults = uniqueResults.slice(0, limit);
+  // Step 5: Build response respecting debug flag
+  private buildResponse(
+    ranked: DomainCandidate[],
+    options: DomainSearchOptions,
+    searchTime: number,
+    totalGenerated: number,
+    filterApplied: boolean,
+  ): SearchResponse {
+    let finalResults: DomainCandidate[] = ranked;
     if (!options.debug) {
-      finalResults = finalResults.map(r => ({ domain: r.domain, suffix: r.suffix, score: r.score, strategy: r.strategy }));
+      finalResults = ranked.map(r => ({
+        domain: r.domain,
+        suffix: r.suffix,
+        score: r.score,
+        strategy: r.strategy,
+      }));
     }
-
-    const end = Date.now();
     return {
       results: finalResults,
       success: true,
       includesAiGenerations: !!options.useAi,
       metadata: {
-        searchTime: end - start,
-        totalGenerated: uniqueResults.length,
-        filterApplied: !!options.supportedTlds,
+        searchTime,
+        totalGenerated,
+        filterApplied,
       },
     };
   }
 }
+
+// Internal types for clarity of orchestration
+type PreparedRequest = {
+  cfg: DomainSearchOptions & { supportedTlds: string[]; defaultTlds: string[]; synonyms: Record<string, string[]> };
+  cc?: string;
+  limit: number;
+};
 
 export type {
   DomainSearchOptions,

@@ -1,6 +1,6 @@
 {
   "name": "domaingenie",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A fast and intelligent domain name generator from natural language",
   "main": "dist/index.js",
   "type": "module",

@@ -8,19 +8,26 @@ const DEFAULT_TLD_WEIGHTS: Record<string, number> = {
   org: 10,
 };
 
-type RankingConfig = {
-  tldWeights?: Record<string, number>;
-  hyphenPenalty?: number;
-  numberPenalty?: number;
-  baseScore?: number;
-  lengthPenaltyPerChar?: number;
-  vowelRatioWeight?: number;
-  lowVowelRatioThreshold?: number;
-  lowVowelPenalty?: number;
-  consonantClusterPenalty?: number;
-  repeatedLettersPenalty?: number;
-  locationTldBonus?: number;
-};
+export class ScoringConfig {
+  tldWeights: Record<string, number> = DEFAULT_TLD_WEIGHTS;
+  hyphenPenalty = 5;
+  numberPenalty = 5;
+  baseScore = 100;
+  lengthPenaltyPerChar = 1;
+  lengthSeverity = 2;
+  vowelRatioWeight = 10;
+  lowVowelRatioThreshold = 0.3;
+  lowVowelPenalty = 5;
+  consonantClusterPenalty = 5;
+  repeatedLettersPenalty = 5;
+  locationTldBonus = 20;
+  dictionaryWord = 15;
+  dictionarySubstr = 5;
+
+  constructor (init?: Partial<ScoringConfig>) {
+    if (init) Object.assign(this, init);
+  }
+}
 
 // Simple dictionary membership cache for speed
 const DICT_CACHE = new Map<string, boolean>();
@@ -62,20 +69,6 @@ function isComposedOfDictionaryWords(label: string): boolean {
   }
   return false;
 }
-
-const DEFAULT_RANKING_CONFIG: RankingConfig = {
-  tldWeights: DEFAULT_TLD_WEIGHTS,
-  baseScore: 100,
-  lengthPenaltyPerChar: 1,
-  hyphenPenalty: 5,
-  numberPenalty: 5,
-  vowelRatioWeight: 10,
-  lowVowelRatioThreshold: 0.3,
-  lowVowelPenalty: 10,
-  consonantClusterPenalty: 5,
-  repeatedLettersPenalty: 5,
-  locationTldBonus: 20,
-};
 
 /**
  * Ranker: interleaves candidates across TLDs and strategies while
@@ -159,8 +152,8 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
 
   return out;
 }
-export function scoreDomain(label: string, tld: string, location?: string, config: RankingConfig = {}): DomainScore {
-  const cfg: RankingConfig = { ...DEFAULT_RANKING_CONFIG, ...config };
+export function scoreDomain(label: string, tld: string, location?: string, config?: Partial<ScoringConfig> | ScoringConfig): DomainScore {
+  const cfg: ScoringConfig = config instanceof ScoringConfig ? config : new ScoringConfig(config);
   const components: Record<string, number> = {};
   let total = 0;
 
@@ -169,33 +162,33 @@ export function scoreDomain(label: string, tld: string, location?: string, confi
     total += value;
   };
 
-  add('base', cfg.baseScore!);
+  add('base', cfg.baseScore);
 
-  const len = label.length;
-  add('lengthPenalty', -len * (cfg.lengthPenaltyPerChar!));
+  const len = label.length + (tld ? tld.length : 0);
+  add('lengthPenalty', -(cfg.lengthSeverity * len * cfg.lengthPenaltyPerChar));
   const hyphenCount = (label.match(/-/g) || []).length;
   const numCount = (label.match(/[0-9]/g) || []).length;
-  add('hyphenPenalty', -hyphenCount * (cfg.hyphenPenalty!));
-  add('numberPenalty', -numCount * (cfg.numberPenalty!));
+  add('hyphenPenalty', -hyphenCount * cfg.hyphenPenalty);
+  add('numberPenalty', -numCount * cfg.numberPenalty);
 
   const ratio = vowelRatio(label);
-  add('vowelRatio', ratio * (cfg.vowelRatioWeight!));
-  if (ratio < (cfg.lowVowelRatioThreshold!)) add('lowVowelPenalty', -(cfg.lowVowelPenalty!)); // hard to pronounce
-  if (/([bcdfghjklmnpqrstvwxyz]{4,})/i.test(label)) add('consonantClusterPenalty', -(cfg.consonantClusterPenalty!)); // many consonants together
-  if (/([a-z])\1{2,}/i.test(label)) add('repeatedLettersPenalty', -(cfg.repeatedLettersPenalty!)); // repeated letters reduce brandability
+  add('vowelRatio', ratio * cfg.vowelRatioWeight);
+  if (ratio < cfg.lowVowelRatioThreshold) add('lowVowelPenalty', -cfg.lowVowelPenalty); // hard to pronounce
+  if (/([bcdfghjklmnpqrstvwxyz]{4,})/i.test(label)) add('consonantClusterPenalty', -cfg.consonantClusterPenalty); // many consonants together
+  if (/([a-z])\1{2,}/i.test(label)) add('repeatedLettersPenalty', -cfg.repeatedLettersPenalty); // repeated letters reduce brandability
 
   const suffix = tld.toLowerCase();
-  const weights = cfg.tldWeights || DEFAULT_TLD_WEIGHTS;
+  const weights = cfg.tldWeights;
   add('tldWeight', weights[suffix] || 0);
   if (location && suffix === location.toLowerCase()) {
-    add('locationBonus', cfg.locationTldBonus!);
+    add('locationBonus', cfg.locationTldBonus);
   }
 
   // Boost dictionary words and sensible compounds
   if (isDictionaryWord(label)) {
-    add('dictionaryBonus', 15);
+    add('dictWord', cfg.dictionaryWord);
   } else if (isComposedOfDictionaryWords(label)) {
-    add('dictionaryBonus', 10);
+    add('dictSubstr', cfg.dictionarySubstr);
   }
 
   return { total, components };

@@ -15,12 +15,12 @@ A library for generating and ranking domain name suggestions including AI-genera
 
 ## Installation
 ```bash
-npm install
+npm install domaingenie
 ```
 
 ## Usage
 ```ts
-import { DomainSearchClient } from 'ai-domain-generator';
+import { DomainSearchClient } from 'domaingenie';
 
 const client = new DomainSearchClient();
 const results = await client.search({ query: 'foo bar' });

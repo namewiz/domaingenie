@@ -1,6 +1,6 @@
-import synonymsLib from 'synonyms';
 import { generateCandidates } from './generator';
-import { scoreDomain } from './ranking';
+import { rankDomains, scoreDomain } from './ranking';
+import { expandSynonyms } from './synonyms';
 import tlds from "./tlds.json" assert { type: "json" };
 import { ClientInitOptions, DomainCandidate, DomainSearchOptions, SearchResponse } from './types';
 import { getCcTld, isValidTld, normalizeTld, normalizeTokens } from './utils';
@@ -40,28 +40,6 @@ const DEFAULT_INIT_OPTIONS: Required<ClientInitOptions> = {
   },
 };
 
-// Local synonym expansion with memoization
-const SYN_CACHE = new Map<string, string[]>();
-function expandSynonyms(token: string, max = 5, extra: string[] = []): string[] {
-  const base = token.toLowerCase();
-  if (SYN_CACHE.has(base)) return SYN_CACHE.get(base)!;
-  let list: string[] = [base];
-  try {
-    const syn = synonymsLib(base);
-    if (syn) {
-      for (const key of Object.keys(syn as any)) {
-        const arr = (syn as any)[key] as string[];
-        if (Array.isArray(arr)) list.push(...arr);
-      }
-    }
-  } catch {
-    // ignore library errors
-  }
-  if (extra && extra.length) list.push(...extra.map(e => e.toLowerCase()));
-  const uniqueList = Array.from(new Set(list.filter(w => w && w.length <= 15))).slice(0, max);
-  SYN_CACHE.set(base, uniqueList);
-  return uniqueList;
-}
 
 function error(message: string): SearchResponse {
   return {
@@ -106,7 +84,7 @@ export class DomainSearchClient {
     const scored = this.scoreCandidates(rawCandidates, prepared);
 
     // 4) Rank candidates
-    const ranked = this.rankCandidates(scored, prepared.limit);
+    const ranked = rankDomains(scored, prepared.limit);
 
     // 5) Return results
     const end = Date.now();
@@ -151,7 +129,6 @@ export class DomainSearchClient {
     return { cfg, cc, limit: limit as number };
   }
 
-  // Step 3: Score candidates (filter and score)
   private scoreCandidates(
     candidates: Partial<DomainCandidate & { strategy?: string }>[],
     prepared: PreparedRequest,
@@ -175,23 +152,6 @@ export class DomainSearchClient {
     return results;
   }
 
-  // Step 4: Rank candidates (dedupe by domain, sort by score desc, limit)
-  private rankCandidates(results: DomainCandidate[], limit: number): DomainCandidate[] {
-    const resultMap = new Map<string, DomainCandidate>();
-    for (const r of results) {
-      const existing = resultMap.get(r.domain);
-      if (existing) {
-        if (r.score.total > existing.score.total) existing.score = r.score;
-      } else {
-        resultMap.set(r.domain, { ...r });
-      }
-    }
-    const uniqueResults = Array.from(resultMap.values());
-    uniqueResults.sort((a, b) => b.score.total - a.score.total);
-    return uniqueResults.slice(0, limit);
-  }
-
-  // Step 5: Build response respecting debug flag
   private buildResponse(
     ranked: DomainCandidate[],
     options: DomainSearchOptions,
@@ -229,6 +189,7 @@ type PreparedRequest = {
 };
 
 export { generateCandidates } from './generator';
+export { scoreDomain } from './ranking';
 export {
   AffixStrategy, AlphabeticalStrategy, PermutationStrategy, TldHackStrategy
 } from './strategies';

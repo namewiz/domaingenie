@@ -6,11 +6,8 @@ import {
 } from './strategies';
 import { DomainCandidate, DomainSearchOptions, GenerationStrategy } from './types';
 
-export interface GenConfig { }
-
 export async function generateCandidates(
   options: DomainSearchOptions,
-  _config: GenConfig = {},
 ): Promise<Partial<DomainCandidate & { strategy: string }>[]> {
   const strategies: { name: string; strategy: GenerationStrategy }[] = [
     { name: 'permutation', strategy: new PermutationStrategy() },

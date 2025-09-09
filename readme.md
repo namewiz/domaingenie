@@ -78,7 +78,7 @@ Search for domain names. `options` extend the init options so each call can over
 | --- | --- | --- |
 | `domain` | `string` | Fully qualified domain name. |
 | `suffix` | `string` | TLD without the leading dot. |
-| `score` | `number` | Relative ranking score for the domain. |
+| `score` | `{ total: number, components: Record<string, number> }` | Final score and contributing factors. |
 | `isAvailable` | `boolean?` | Domain availability flag (only with `debug`). |
 | `aiGenerated` | `boolean?` | Marks names produced by AI. |
 | `variantTypes` | `string[]?` | Types of permutations used (only with `debug`). |

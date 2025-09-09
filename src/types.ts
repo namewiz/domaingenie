@@ -26,11 +26,17 @@ export interface DomainSearchOptions extends ClientInitOptions {
 
 // Results --------------------------------------------------------------------
 
+/** Detailed breakdown of how a domain was scored. */
+export interface DomainScore {
+  total: number;
+  components: Record<string, number>;
+}
+
 /** Represents a generated domain name candidate. */
 export interface DomainCandidate {
   domain: string;
   suffix: string;
-  score: number;
+  score: DomainScore;
   isAvailable?: boolean;
   aiGenerated?: boolean;
   variantTypes?: string[];

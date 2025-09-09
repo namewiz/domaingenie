@@ -181,13 +181,13 @@ export class DomainSearchClient {
     for (const r of results) {
       const existing = resultMap.get(r.domain);
       if (existing) {
-        if (r.score > existing.score) existing.score = r.score;
+        if (r.score.total > existing.score.total) existing.score = r.score;
       } else {
         resultMap.set(r.domain, { ...r });
       }
     }
     const uniqueResults = Array.from(resultMap.values());
-    uniqueResults.sort((a, b) => b.score - a.score);
+    uniqueResults.sort((a, b) => b.score.total - a.score.total);
     return uniqueResults.slice(0, limit);
   }
 
@@ -234,6 +234,6 @@ export {
 } from './strategies';
 export type {
   ClientInitOptions,
-  DomainCandidate, DomainSearchOptions, GenerationStrategy, SearchMetadata, SearchResponse
+  DomainCandidate, DomainSearchOptions, GenerationStrategy, DomainScore as ScoreBreakdown, SearchMetadata, SearchResponse
 } from './types';
 

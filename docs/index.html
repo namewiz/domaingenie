@@ -18,6 +18,9 @@
       --ok-tint: #ecfdf5;
       --bad-tint: #fef2f2;
       --unk-tint: #f3f4f6;
+      /* Top-N blue tint */
+      --top-accent: #2563eb;
+      --top-tint: #eff6ff;
     }
 
     * {
@@ -40,7 +43,7 @@
     }
 
     .wrap {
-      max-width: 620px;
+      max-width: 820px;
       margin: 64px auto;
       padding: 0 20px;
       flex: 1;
@@ -119,9 +122,10 @@
       transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
     }
 
-    .row.ok {
-      background: var(--ok-tint);
-      border-color: #10b98133;
+    /* Top-N rows get blue tint */
+    .row.top {
+      background: var(--top-tint);
+      border-color: #2563eb33;
     }
 
     .row.unk {
@@ -129,8 +133,20 @@
       border-color: var(--ring);
     }
 
+    .left {
+      display: grid;
+      gap: 4px;
+      align-content: start;
+    }
+
     .domain {
       font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .strategy {
+      font-size: 12px;
+      color: var(--muted);
       line-height: 1.2;
     }
 
@@ -146,6 +162,14 @@
       color: #374151
     }
 
+    /* Main score chip for Top-N (blue) */
+    .chip.top {
+      background: var(--top-tint);
+      border-color: #2563eb33;
+      color: #1e40af;
+    }
+
+    /* Positive/negative component chips */
     .chip.ok {
       background: #ecfdf5;
       border-color: #10b98133;
@@ -156,14 +180,15 @@
     .meta {
       justify-self: end;
       display: grid;
-      gap: 2px;
+      gap: 6px;
       text-align: right;
     }
 
-    .strategy {
-      font-size: 11px;
-      color: var(--muted);
-      line-height: 1.0;
+    .components {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: flex-end;
     }
 
     .chip.bad {
@@ -214,10 +239,13 @@
 
   <template id="row">
     <div class="row">
-      <div class="domain"></div>
-      <div class="meta">
-        <span class="chip unk">0</span>
+      <div class="left">
+        <div class="domain"></div>
         <div class="strategy">—</div>
+      </div>
+      <div class="meta">
+        <span class="chip unk score">0</span>
+        <div class="components"></div>
       </div>
     </div>
   </template>
@@ -238,7 +266,7 @@
         // Keep defaults from the library; override limit for demo
         limit: 50,
       });
-      const TOP_N = 10; // top N results get green tint
+      const TOP_N = 10; // top N results get blue tint
 
       const results = document.getElementById('results');
       const q = document.getElementById('q');
@@ -267,18 +295,33 @@
 
           items.forEach((item, idx) => {
             const row = tpl.content.firstElementChild.cloneNode(true);
+            // Left column
             row.querySelector('.domain').textContent = item.domain;
-            const chip = row.querySelector('.chip');
             const strategyEl = row.querySelector('.strategy');
-            chip.textContent = String(Math.round(item.score));
             strategyEl.textContent = item.strategy || '';
-            // Top N get green tint, others gray
+
+            // Right meta: overall score
+            const scoreChip = row.querySelector('.chip.score');
+            scoreChip.textContent = String(Math.round(item.score.total));
+
+            // Right meta: component chips under the score
+            const compWrap = row.querySelector('.components');
+            const comps = Object.entries(item.score.components || {}).sort((a, b) => b[1] - a[1]);
+            comps.forEach(([key, val]) => {
+              const n = Math.round(val);
+              const s = document.createElement('span');
+              s.className = 'chip ' + (n >= 0 ? 'ok' : 'bad');
+              s.textContent = `${key} | ${n}`;
+              compWrap.appendChild(s);
+            });
+
+            // Top N get blue tint, others gray
             if (idx < TOP_N) {
-              row.className = 'row ok';
-              chip.className = 'chip ok';
+              row.className = 'row top';
+              scoreChip.className = 'chip top score';
             } else {
               row.className = 'row unk';
-              chip.className = 'chip unk';
+              scoreChip.className = 'chip unk score';
             }
             results.appendChild(row);
           });

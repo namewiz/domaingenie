@@ -11,8 +11,9 @@ test('search generates ranked domain suggestions', async t => {
   t.true(result.results.some(r => r.domain.includes('fasttech.com')));
   // ensure sorted by score
   for (let i = 1; i < result.results.length; i++) {
-    t.true(result.results[i - 1].score >= result.results[i].score);
+    t.true(result.results[i - 1].score.total >= result.results[i].score.total);
   }
+  t.truthy(result.results[0].score.components);
 });
 
 test('location maps to ccTLD and hyphen variants generated', async t => {
@@ -57,7 +58,7 @@ test('custom tld weights influence ranking', async t => {
   const com = res.results.find(r => r.domain.includes('.com'));
   const net = res.results.find(r => r.domain.includes('.net'));
   t.truthy(com && net);
-  t.true(net.score > com.score);
+  t.true(net.score.total > com.score.total);
 });
 
 test('invalid tld triggers error', async t => {

@@ -1,5 +1,5 @@
 import synonymsLib from 'synonyms';
-import type { DomainCandidate } from './types';
+import type { DomainCandidate, DomainScore } from './types';
 import { vowelRatio } from './utils';
 
 const DEFAULT_TLD_WEIGHTS: Record<string, number> = {
@@ -86,7 +86,7 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
   if (!candidates.length) return [];
 
   // Global sort by score descending
-  const sorted = candidates.slice().sort((a, b) => b.score - a.score);
+  const sorted = candidates.slice().sort((a, b) => b.score.total - a.score.total);
 
   // Extract label (domain left of last ".suffix") quickly
   const getLabel = (c: DomainCandidate): string => {
@@ -104,7 +104,7 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
   }
 
   // Order groups by their top score
-  const groups = Array.from(bySuffix.entries()).sort((a, b) => (b[1][0]?.score || 0) - (a[1][0]?.score || 0));
+  const groups = Array.from(bySuffix.entries()).sort((a, b) => (b[1][0]?.score.total || 0) - (a[1][0]?.score.total || 0));
 
   const out: DomainCandidate[] = [];
   const usedLabels = new Set<string>();
@@ -159,34 +159,44 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
 
   return out;
 }
-export function scoreDomain(label: string, tld: string, location?: string, config: RankingConfig = {}): number {
+export function scoreDomain(label: string, tld: string, location?: string, config: RankingConfig = {}): DomainScore {
   const cfg: RankingConfig = { ...DEFAULT_RANKING_CONFIG, ...config };
-  let score = cfg.baseScore!;
+  const components: Record<string, number> = {};
+  let total = 0;
+
+  const add = (key: string, value: number) => {
+    if (value !== 0) components[key] = value;
+    total += value;
+  };
+
+  add('base', cfg.baseScore!);
+
   const len = label.length;
-  score -= len * (cfg.lengthPenaltyPerChar!); // shorter is better
+  add('lengthPenalty', -len * (cfg.lengthPenaltyPerChar!));
   const hyphenCount = (label.match(/-/g) || []).length;
   const numCount = (label.match(/[0-9]/g) || []).length;
-  score -= hyphenCount * (cfg.hyphenPenalty!);
-  score -= numCount * (cfg.numberPenalty!);
+  add('hyphenPenalty', -hyphenCount * (cfg.hyphenPenalty!));
+  add('numberPenalty', -numCount * (cfg.numberPenalty!));
 
   const ratio = vowelRatio(label);
-  score += ratio * (cfg.vowelRatioWeight!);
-  if (ratio < (cfg.lowVowelRatioThreshold!)) score -= (cfg.lowVowelPenalty!); // hard to pronounce
-  if (/([bcdfghjklmnpqrstvwxyz]{4,})/i.test(label)) score -= (cfg.consonantClusterPenalty!); // many consonants together
-  if (/([a-z])\1{2,}/i.test(label)) score -= (cfg.repeatedLettersPenalty!); // repeated letters reduce brandability
+  add('vowelRatio', ratio * (cfg.vowelRatioWeight!));
+  if (ratio < (cfg.lowVowelRatioThreshold!)) add('lowVowelPenalty', -(cfg.lowVowelPenalty!)); // hard to pronounce
+  if (/([bcdfghjklmnpqrstvwxyz]{4,})/i.test(label)) add('consonantClusterPenalty', -(cfg.consonantClusterPenalty!)); // many consonants together
+  if (/([a-z])\1{2,}/i.test(label)) add('repeatedLettersPenalty', -(cfg.repeatedLettersPenalty!)); // repeated letters reduce brandability
 
   const suffix = tld.toLowerCase();
   const weights = cfg.tldWeights || DEFAULT_TLD_WEIGHTS;
-  score += weights[suffix] || 0;
+  add('tldWeight', weights[suffix] || 0);
   if (location && suffix === location.toLowerCase()) {
-    score += (cfg.locationTldBonus!);
+    add('locationBonus', cfg.locationTldBonus!);
   }
 
   // Boost dictionary words and sensible compounds
   if (isDictionaryWord(label)) {
-    score += 15;
+    add('dictionaryBonus', 15);
   } else if (isComposedOfDictionaryWords(label)) {
-    score += 10;
+    add('dictionaryBonus', 10);
   }
-  return score;
+
+  return { total, components };
 }

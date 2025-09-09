@@ -8,6 +8,7 @@
     "build": "esbuild src/index.ts --bundle --outdir=dist --platform=neutral --format=esm",
     "postbuild": "cp dist/index.js docs/domaingenie.js",
     "watch": "esbuild src/index.ts --bundle --outdir=dist --platform=neutral --format=esm --watch",
+    "postwatch": "cp dist/index.js docs/domaingenie.js",
     "test": "npm run build && ava"
   },
   "homepage": "https://namewiz.github.io/domaingenie",

@@ -5,6 +5,8 @@ export interface ClientInitOptions {
   defaultTlds?: string[];
   supportedTlds?: string[];
   limit?: number;
+  // Number of results to skip (for pagination)
+  offset?: number;
   prefixes?: string[];
   suffixes?: string[];
   maxSynonyms?: number;

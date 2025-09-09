@@ -104,9 +104,48 @@
       height: 18px
     }
 
+    /* Summary text above results */
+    .summary {
+      color: var(--muted);
+      margin: 20px 0 0;
+      font-size: 14px;
+      padding-left: 5px;
+    }
+
+    /* Dev mode chip beside title */
+    .chip.dev {
+      background: var(--top-tint);
+      border-color: #2563eb33;
+      color: #1e40af;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
     /* Results */
     .list {
-      margin-top: 16px;
+      margin-top: 0px;
+    }
+
+    /* Pager */
+    .pager {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .pager button {
+      border: 1px solid var(--ring);
+      background: #eef2f7;
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .pager button[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .row {
@@ -217,7 +256,7 @@
 
 <body>
   <div class="wrap">
-    <h4>namewiz / domaingenie</h4>
+    <h4>namewiz / domaingenie <span id="dev-chip" class="chip dev" hidden>dev mode</span></h4>
     <h1>Generate domain ideas</h1>
     <p class="sub">Type a short description and get ranked domain ideas with smart scoring across supported TLDs.</p>
     <p class="sub">Install & usage guide is on the <a href="https://www.npmjs.com/package/domaingenie">npm page</a>.</p>
@@ -234,7 +273,13 @@
       </button>
     </div>
 
+    <div class="summary" id="result-summary" aria-live="polite"></div>
     <div class="list" id="results" aria-live="polite"></div>
+    <div class="pager" id="pager" aria-label="Pagination controls">
+      <button id="prev" disabled>Prev</button>
+      <button id="next" disabled>Next</button>
+      <span id="pageInfo" style="color:var(--muted); font-size: 12px;"></span>
+    </div>
   </div>
 
   <template id="row">
@@ -254,23 +299,40 @@
     // Try local build first; fallback to CDN when unavailable
     (async () => {
       let DomainSearchClient;
+      let isLocalBuild = true;
       try {
         ({ DomainSearchClient } = await import('./domaingenie.js'));
       } catch (err) {
-        console.warn('Local domaingenie not found, using CDN.', err);
-        ({ DomainSearchClient } = await import('https://cdn.jsdelivr.net/npm/domaingenie@latest/dist/index.js'));
+        console.warn('Error importing local domaingenie.js, using CDN. \n\nError: ', err);
+        isLocalBuild = false;
+        ({ DomainSearchClient } = await import('https://cdn.jsdelivr.net/npm/domaingenie@0.0.8/dist/index.js'));
       }
+
+      // Read initial state from URL
+      const initUrl = new URL(window.location.href);
+      const initQuery = (initUrl.searchParams.get('query') || '').trim();
+      const initLimitParam = parseInt(initUrl.searchParams.get('limit') || '30', 10);
+      const initOffsetParam = parseInt(initUrl.searchParams.get('offset') || '0', 10);
+      const resolvedLimit = Number.isFinite(initLimitParam) && initLimitParam > 0 ? initLimitParam : 30;
 
       // Configure client and rendering behavior
       const client = new DomainSearchClient({
-        // Keep defaults from the library; override limit for demo
-        limit: 50,
+        // Keep defaults from the library; override limit for demo (URL param wins)
+        limit: resolvedLimit,
       });
       const TOP_N = 10; // top N results get blue tint
 
       const results = document.getElementById('results');
+      const summary = document.getElementById('result-summary');
       const q = document.getElementById('q');
       const clear = document.getElementById('clear');
+      const prevBtn = document.getElementById('prev');
+      const nextBtn = document.getElementById('next');
+      const pageInfo = document.getElementById('pageInfo');
+
+      // Show dev mode chip when using local build
+      const devChip = document.getElementById('dev-chip');
+      if (devChip) devChip.hidden = !isLocalBuild;
 
       // Prevent stale async updates when user keeps typing
       let renderToken = 0;
@@ -281,17 +343,53 @@
         return (term || '').trim();
       }
 
+      // Pagination state
+      const PAGE_SIZE = client.getInitOptions().limit;
+      let offset = Number.isFinite(initOffsetParam) && initOffsetParam > 0 ? initOffsetParam : 0;
+
+      // Keep URL in sync with state
+      function updateURL({ query, limit, offset }) {
+        const url = new URL(window.location.href);
+        const term = sanitize(query);
+        if (term) url.searchParams.set('query', term); else url.searchParams.delete('query');
+        // Always encode limit explicitly for shareable links
+        if (Number.isFinite(limit) && limit > 0) url.searchParams.set('limit', String(limit));
+        // Only include offset when greater than zero
+        if (Number.isFinite(offset) && offset > 0) url.searchParams.set('offset', String(offset));
+        else url.searchParams.delete('offset');
+        history.replaceState({}, '', url);
+      }
+
+      function updatePager(count, term) {
+        const hasQuery = !!sanitize(term);
+        prevBtn.disabled = !hasQuery || offset <= 0;
+        nextBtn.disabled = !hasQuery || count < PAGE_SIZE;
+        if (!hasQuery) {
+          pageInfo.textContent = '';
+          return;
+        }
+        const start = offset + 1;
+        const end = offset + count;
+        pageInfo.textContent = `${start}-${end}`;
+      }
+
       async function renderFromQuery(query) {
         const token = ++renderToken;
         const term = sanitize(query);
         results.innerHTML = '';
-        if (!term) return;
+        summary.textContent = '';
+        if (!term) { updatePager(0, term); return; }
 
         const tpl = document.getElementById('row');
 
         try {
-          const { results: items } = await client.search({ query: term });
+          const t0 = performance.now();
+          const { results: items, metadata } = await client.search({ query: term, offset });
+          const secs = (performance.now() - t0) / 1000;
           if (token !== renderToken) return; // stale render, skip
+
+          // Summary line before results
+          summary.textContent = `Generated ${metadata.totalGenerated.toLocaleString()} results in ${secs.toFixed(2)} secs`;
 
           items.forEach((item, idx) => {
             const row = tpl.content.firstElementChild.cloneNode(true);
@@ -325,24 +423,50 @@
             }
             results.appendChild(row);
           });
+          updatePager(items.length, term);
         } catch (e) {
           if (token !== renderToken) return;
           // render nothing on error for now
+          updatePager(0, term);
         }
       }
 
       function onInput() {
         clearTimeout(debounceId);
+        offset = 0; // reset to first page on new input
         const value = q.value;
-        debounceId = setTimeout(() => renderFromQuery(value), 150);
+        debounceId = setTimeout(() => {
+          updateURL({ query: value, limit: PAGE_SIZE, offset });
+          renderFromQuery(value);
+        }, 150);
       }
 
       q.addEventListener('input', onInput);
       clear.addEventListener('click', () => { q.value = ''; onInput(); q.focus(); });
 
-      // initial
-      q.value = '';
-      // Initial state: empty list until user types
+      // Pager controls
+      prevBtn.addEventListener('click', () => {
+        if (offset <= 0) return;
+        offset = Math.max(0, offset - PAGE_SIZE);
+        updateURL({ query: q.value, limit: PAGE_SIZE, offset });
+        renderFromQuery(q.value);
+      });
+      nextBtn.addEventListener('click', () => {
+        offset += PAGE_SIZE;
+        updateURL({ query: q.value, limit: PAGE_SIZE, offset });
+        renderFromQuery(q.value);
+      });
+
+      // Initial state from URL: set query, offset, and encode limit
+      q.value = initQuery;
+      updateURL({ query: q.value, limit: PAGE_SIZE, offset });
+      if (sanitize(q.value)) {
+        // Render immediately if URL contained a query
+        renderFromQuery(q.value);
+      } else {
+        // Initial state: empty list until user types
+        updatePager(0, '');
+      }
     })();
   </script>
   <footer style="margin:48px auto 0px; padding-bottom: 40px; text-align:center;color:#6b7280;font-size:14px;">

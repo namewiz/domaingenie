@@ -16,6 +16,7 @@ const DEFAULT_INIT_OPTIONS: Required<ClientInitOptions> = {
   defaultTlds: ['com', 'ng'],
   supportedTlds: Object.keys(TLD_MAP),
   limit: 20,
+  offset: 0,
   // more here - https://gist.github.com/marcanuy/06cb00bc36033cd12875
   prefixes: [
     'my', 'the', 'get', 'try', 'go', 'global', 'one', 'pro', 'best',
@@ -83,8 +84,10 @@ export class DomainSearchClient {
     // 3) Score candidates
     const scored = this.scoreCandidates(rawCandidates, prepared);
 
-    // 4) Rank candidates
-    const ranked = rankDomains(scored, prepared.limit);
+    // 4) Rank candidates (account for offset by expanding limit then slicing)
+    const rankLimit = prepared.limit + (prepared.offset || 0);
+    const rankedAll = rankDomains(scored, rankLimit);
+    const ranked = (prepared.offset || 0) > 0 ? rankedAll.slice(prepared.offset) : rankedAll;
 
     // 5) Return results
     const end = Date.now();
@@ -99,6 +102,8 @@ export class DomainSearchClient {
     const cfg = { ...this.init, ...options } as DomainSearchOptions;
     const limit = cfg.limit ?? this.init.limit;
     if (!Number.isFinite(limit) || (limit as number) <= 0) throw new Error('limit must be positive');
+    const offset = cfg.offset ?? this.init.offset ?? 0;
+    if (!Number.isFinite(offset) || (offset as number) < 0) throw new Error('offset must be >= 0');
 
     if (options.keywords && !Array.isArray(options.keywords)) throw new Error('keywords must be an array');
     if (options.supportedTlds && !Array.isArray(options.supportedTlds)) throw new Error('supportedTlds must be an array');
@@ -126,7 +131,7 @@ export class DomainSearchClient {
     }
     cfg.synonyms = synMap;
 
-    return { cfg, cc, limit: limit as number };
+    return { cfg, cc, limit: limit as number, offset: offset as number };
   }
 
   private scoreCandidates(
@@ -186,6 +191,7 @@ type PreparedRequest = {
   cfg: DomainSearchOptions & { supportedTlds: string[]; defaultTlds: string[]; synonyms: Record<string, string[]> };
   cc?: string;
   limit: number;
+  offset: number;
 };
 
 export { generateCandidates } from './generator';
@@ -197,4 +203,3 @@ export type {
   ClientInitOptions,
   DomainCandidate, DomainSearchOptions, GenerationStrategy, DomainScore as ScoreBreakdown, SearchMetadata, SearchResponse
 } from './types';
-

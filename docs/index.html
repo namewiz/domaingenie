@@ -128,7 +128,6 @@
 
     /* Pager */
     .pager {
-      display: flex;
       align-items: center;
       gap: 10px;
       margin-top: 12px;
@@ -275,7 +274,7 @@
 
     <div class="summary" id="result-summary" aria-live="polite"></div>
     <div class="list" id="results" aria-live="polite"></div>
-    <div class="pager" id="pager" aria-label="Pagination controls">
+    <div class="pager" id="pager" aria-label="Pagination controls" hidden>
       <button id="prev" disabled>Prev</button>
       <button id="next" disabled>Next</button>
       <span id="pageInfo" style="color:var(--muted); font-size: 12px;"></span>
@@ -329,6 +328,7 @@
       const prevBtn = document.getElementById('prev');
       const nextBtn = document.getElementById('next');
       const pageInfo = document.getElementById('pageInfo');
+      const pager = document.getElementById('pager');
 
       // Show dev mode chip when using local build
       const devChip = document.getElementById('dev-chip');
@@ -362,9 +362,13 @@
 
       function updatePager(count, term) {
         const hasQuery = !!sanitize(term);
-        prevBtn.disabled = !hasQuery || offset <= 0;
-        nextBtn.disabled = !hasQuery || count < PAGE_SIZE;
-        if (!hasQuery) {
+        const hasResults = count > 0;
+        if (pager) pager.hidden = !hasResults;
+
+        prevBtn.disabled = !hasQuery || offset <= 0 || !hasResults;
+        nextBtn.disabled = !hasQuery || count < PAGE_SIZE || !hasResults;
+
+        if (!hasQuery || !hasResults) {
           pageInfo.textContent = '';
           return;
         }

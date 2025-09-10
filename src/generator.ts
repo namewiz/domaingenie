@@ -1,6 +1,5 @@
 import {
   AffixStrategy,
-  AlphabeticalStrategy,
   PermutationStrategy,
   TldHackStrategy,
 } from './strategies';
@@ -11,7 +10,6 @@ export async function generateCandidates(
 ): Promise<Partial<DomainCandidate & { strategy: string }>[]> {
   const strategies: { name: string; strategy: GenerationStrategy }[] = [
     { name: 'permutation', strategy: new PermutationStrategy() },
-    { name: 'alphabetical', strategy: new AlphabeticalStrategy() },
     { name: 'affix', strategy: new AffixStrategy() },
     { name: 'tldHack', strategy: new TldHackStrategy() },
   ];

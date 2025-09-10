@@ -18,15 +18,7 @@ test('generator produces permutations, hyphenated and affix variants', async t =
   t.true(domains.includes('fasttechsuf.com'));
 });
 
-test('generator produces alphabetical and tldHack variants', async t => {
-  const alpha = await generateCandidates({
-    query: 'z a',
-    supportedTlds: ['com'],
-    defaultTlds: [],
-    maxSynonyms: 1,
-  });
-  t.true(alpha.some(c => c.domain === 'az.com'));
-
+test('generator produces tldHack variants', async t => {
   const hack = await generateCandidates({
     query: 'brandly',
     supportedTlds: ['ly'],

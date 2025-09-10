@@ -197,7 +197,7 @@ type PreparedRequest = {
 export { generateCandidates } from './generator';
 export { scoreDomain } from './ranking';
 export {
-  AffixStrategy, AlphabeticalStrategy, PermutationStrategy, TldHackStrategy
+  AffixStrategy, PermutationStrategy, TldHackStrategy
 } from './strategies';
 export type {
   ClientInitOptions,

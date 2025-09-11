@@ -43,7 +43,8 @@
     }
 
     .wrap {
-      max-width: 820px;
+      max-width: 920px;
+      width: 100%;
       margin: 64px auto;
       padding: 0 20px;
       flex: 1;
@@ -63,7 +64,7 @@
 
     .sub {
       color: var(--muted);
-      max-width: 720px;
+      /* max-width: 720px; */
       margin-bottom: 28px
     }
 
@@ -131,6 +132,35 @@
       align-items: center;
       gap: 10px;
       margin-top: 12px;
+    }
+
+    /* Processed query table */
+    .proc-wrap {
+      margin-top: 8px;
+      margin-bottom: 8px;
+      overflow-x: auto;
+    }
+
+    table.proc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    table.proc-table th,
+    table.proc-table td {
+      border: 1px solid var(--line);
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+
+    table.proc-table th {
+      background: #f8fafc;
+      color: var(--muted);
+      width: 220px;
     }
 
     .pager button {
@@ -271,6 +301,7 @@
         </svg>
       </button>
     </div>
+    <div class="proc-wrap" id="processed-wrap" hidden></div>
 
     <div class="summary" id="result-summary" aria-live="polite"></div>
     <div class="list" id="results" aria-live="polite"></div>
@@ -279,6 +310,12 @@
       <button id="next" disabled>Next</button>
       <span id="pageInfo" style="color:var(--muted); font-size: 12px;"></span>
     </div>
+
+
+    <footer style="margin:48px auto 0px; padding-bottom: 40px; text-align:center;color:#6b7280;font-size:14px;">
+      Made with ❤️ by Justice &amp; AI. <a href="https://github.com/namewiz/domaingenie" target="_blank"
+        style="color:#2563eb;text-decoration:none;">Source code</a>
+    </footer>
   </div>
 
   <template id="row">
@@ -304,7 +341,7 @@
       } catch (err) {
         console.warn('Error importing local domaingenie.js, using CDN. \n\nError: ', err);
         isLocalBuild = false;
-        ({ DomainSearchClient } = await import('https://cdn.jsdelivr.net/npm/domaingenie@0.0.8/dist/index.js'));
+        ({ DomainSearchClient } = await import('https://cdn.jsdelivr.net/npm/domaingenie@latest/dist/index.js'));
       }
 
       // Read initial state from URL
@@ -323,6 +360,7 @@
 
       const results = document.getElementById('results');
       const summary = document.getElementById('result-summary');
+      const processedWrap = document.getElementById('processed-wrap');
       const q = document.getElementById('q');
       const clear = document.getElementById('clear');
       const prevBtn = document.getElementById('prev');
@@ -382,18 +420,47 @@
         const term = sanitize(query);
         results.innerHTML = '';
         summary.textContent = '';
+        processedWrap.hidden = true;
+        processedWrap.innerHTML = '';
         if (!term) { updatePager(0, term); return; }
 
         const tpl = document.getElementById('row');
 
         try {
           const t0 = performance.now();
-          const { results: items, metadata } = await client.search({ query: term, offset });
+          const res = await client.search({ query: term, offset });
+          const { results: items, metadata, processed } = res;
           const secs = (performance.now() - t0) / 1000;
           if (token !== renderToken) return; // stale render, skip
 
           // Summary line before results
           summary.textContent = `Generated ${metadata.totalGenerated.toLocaleString()} results in ${secs.toFixed(2)} secs`;
+
+          // Processed query table before results
+          if (processed) {
+            const rows = [
+              ['Final Query', processed.finalQuery],
+              ['Tokens', (processed.tokens || []).join(', ')],
+              ['Location CC', processed.cc || ''],
+              ['Supported TLDs', (processed.supportedTlds || []).join(', ')],
+              ['Default TLDs', (processed.defaultTlds || []).join(', ')],
+              ['Limit', String(processed.limit)],
+              ['Offset', String(processed.offset)],
+            ];
+            const tbl = document.createElement('table');
+            tbl.className = 'proc-table';
+            const tbody = document.createElement('tbody');
+            rows.forEach(([k, v]) => {
+              const tr = document.createElement('tr');
+              const th = document.createElement('th'); th.textContent = k;
+              const td = document.createElement('td'); td.textContent = v || '';
+              tr.appendChild(th); tr.appendChild(td);
+              tbody.appendChild(tr);
+            });
+            tbl.appendChild(tbody);
+            processedWrap.appendChild(tbl);
+            processedWrap.hidden = false;
+          }
 
           items.forEach((item, idx) => {
             const row = tpl.content.firstElementChild.cloneNode(true);
@@ -473,10 +540,6 @@
       }
     })();
   </script>
-  <footer style="margin:48px auto 0px; padding-bottom: 40px; text-align:center;color:#6b7280;font-size:14px;">
-    Made with ❤️ by Justice &amp; AI. <a href="https://github.com/namewiz/domaingenie" target="_blank"
-      style="color:#2563eb;text-decoration:none;">Source code</a>
-  </footer>
 </body>
 
 </html>

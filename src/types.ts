@@ -52,6 +52,25 @@ export interface SearchMetadata {
   filterApplied: boolean;
 }
 
+/** Details about the processed query and resolved config. */
+export interface ProcessedQueryInfo {
+  // Normalized tokens extracted from the input query
+  tokens: string[];
+  // Convenience: tokens joined without separators (e.g., "fasttech")
+  finalQuery: string;
+  // Country-code TLD derived from location, if any
+  cc?: string;
+  // Effective supported and default TLDs after normalization and location merge
+  supportedTlds: string[];
+  defaultTlds: string[];
+  // Effective limit and offset
+  limit: number;
+  offset: number;
+  // Original request context that can affect generation/scoring
+  location?: string;
+  includeHyphenated?: boolean;
+}
+
 /** Response returned from a domain search. */
 export interface SearchResponse {
   results: DomainCandidate[];
@@ -59,6 +78,8 @@ export interface SearchResponse {
   message?: string;
   includesAiGenerations: boolean;
   metadata: SearchMetadata;
+  // Final processed query details
+  processed?: ProcessedQueryInfo;
 }
 
 // Strategies -----------------------------------------------------------------

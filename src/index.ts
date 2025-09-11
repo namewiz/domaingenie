@@ -2,7 +2,7 @@ import { generateCandidates } from './generator';
 import { rankDomains, scoreDomain } from './ranking';
 import { expandSynonyms } from './synonyms';
 import tlds from "./tlds.json" assert { type: "json" };
-import { ClientInitOptions, DomainCandidate, DomainSearchOptions, SearchResponse } from './types';
+import { ClientInitOptions, DomainCandidate, DomainSearchOptions, SearchResponse, ProcessedQueryInfo } from './types';
 import { getCcTld, isValidTld, normalizeTld, normalizeTokens } from './utils';
 
 const TLD_MAP: Record<string, string | boolean> = {
@@ -74,6 +74,15 @@ export class DomainSearchClient {
     let prepared: PreparedRequest;
     try {
       prepared = this.processRequest(options);
+      // Expose processed details to buildResponse without widening its signature
+      preparedTokensCache = {
+        tokens: prepared.tokens,
+        cc: prepared.cc,
+        supportedTlds: prepared.cfg.supportedTlds,
+        defaultTlds: prepared.cfg.defaultTlds,
+        limit: prepared.limit,
+        offset: prepared.offset,
+      };
     } catch (e: any) {
       return error(e?.message || 'invalid request');
     }
@@ -92,6 +101,7 @@ export class DomainSearchClient {
     // 5) Return results
     const end = Date.now();
     const response = this.buildResponse(ranked, options, end - start, scored.length, !!options.supportedTlds);
+    preparedTokensCache = null;
     return response;
   }
 
@@ -131,7 +141,7 @@ export class DomainSearchClient {
     }
     cfg.synonyms = synMap;
 
-    return { cfg, cc, limit: limit as number, offset: offset as number };
+    return { cfg, cc, limit: limit as number, offset: offset as number, tokens };
   }
 
   private scoreCandidates(
@@ -173,6 +183,17 @@ export class DomainSearchClient {
         strategy: r.strategy,
       }));
     }
+    const processed: ProcessedQueryInfo = {
+      tokens: preparedTokensCache?.tokens || normalizeTokens(options.query),
+      finalQuery: (preparedTokensCache?.tokens || normalizeTokens(options.query)).join(''),
+      cc: preparedTokensCache?.cc ?? getCcTld(options.location),
+      supportedTlds: preparedTokensCache?.supportedTlds || (options.supportedTlds || this.init.supportedTlds).map(normalizeTld),
+      defaultTlds: preparedTokensCache?.defaultTlds || (options.defaultTlds || this.init.defaultTlds).map(normalizeTld),
+      limit: preparedTokensCache?.limit ?? (options.limit ?? this.init.limit),
+      offset: preparedTokensCache?.offset ?? (options.offset ?? this.init.offset),
+      location: options.location,
+      includeHyphenated: options.includeHyphenated,
+    };
     return {
       results: finalResults,
       success: true,
@@ -182,6 +203,7 @@ export class DomainSearchClient {
         totalGenerated,
         filterApplied,
       },
+      processed,
     };
   }
 }
@@ -192,7 +214,18 @@ type PreparedRequest = {
   cc?: string;
   limit: number;
   offset: number;
+  tokens: string[];
 };
+
+// Simple cache to make processed details available to buildResponse without changing its signature
+let preparedTokensCache: {
+  tokens: string[];
+  cc?: string;
+  supportedTlds: string[];
+  defaultTlds: string[];
+  limit: number;
+  offset: number;
+} | null = null;
 
 export { generateCandidates } from './generator';
 export { scoreDomain } from './ranking';
@@ -201,5 +234,5 @@ export {
 } from './strategies';
 export type {
   ClientInitOptions,
-  DomainCandidate, DomainSearchOptions, GenerationStrategy, DomainScore as ScoreBreakdown, SearchMetadata, SearchResponse
+  DomainCandidate, DomainSearchOptions, GenerationStrategy, DomainScore as ScoreBreakdown, SearchMetadata, SearchResponse, ProcessedQueryInfo
 } from './types';

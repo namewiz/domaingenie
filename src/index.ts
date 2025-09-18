@@ -71,42 +71,42 @@ export class DomainSearchClient {
     const start = Date.now();
 
     // 1) Process search request
-    let prepared: PreparedRequest;
+    let request: RequestContext;
     try {
-      prepared = this.processRequest(options);
-      // Expose processed details to buildResponse without widening its signature
-      preparedTokensCache = {
-        tokens: prepared.tokens,
-        cc: prepared.cc,
-        supportedTlds: prepared.cfg.supportedTlds,
-        defaultTlds: prepared.cfg.defaultTlds,
-        limit: prepared.limit,
-        offset: prepared.offset,
+      request = this.processRequest(options);
+      // Expose request details to buildResponse without widening its signature
+      requestCache = {
+        tokens: request.tokens,
+        cc: request.cc,
+        supportedTlds: request.cfg.supportedTlds,
+        defaultTlds: request.cfg.defaultTlds,
+        limit: request.limit,
+        offset: request.offset,
       };
     } catch (e: any) {
       return error(e?.message || 'invalid request');
     }
 
     // 2) Generate candidates
-    const rawCandidates = await generateCandidates(prepared.cfg);
+    const rawCandidates = await generateCandidates(request.cfg);
 
     // 3) Score candidates
-    const scored = this.scoreCandidates(rawCandidates, prepared);
+    const scored = this.scoreCandidates(rawCandidates, request);
 
     // 4) Rank candidates (account for offset by expanding limit then slicing)
-    const rankLimit = prepared.limit + (prepared.offset || 0);
+    const rankLimit = request.limit + (request.offset || 0);
     const rankedAll = rankDomains(scored, rankLimit);
-    const ranked = (prepared.offset || 0) > 0 ? rankedAll.slice(prepared.offset) : rankedAll;
+    const ranked = (request.offset || 0) > 0 ? rankedAll.slice(request.offset) : rankedAll;
 
     // 5) Return results
     const end = Date.now();
     const response = this.buildResponse(ranked, options, end - start, scored.length, !!options.supportedTlds);
-    preparedTokensCache = null;
+    requestCache = null;
     return response;
   }
 
   // Step 1: Process search request (validate, normalize, enrich)
-  private processRequest(options: DomainSearchOptions): PreparedRequest {
+  private processRequest(options: DomainSearchOptions): RequestContext {
     if (!options.query || !options.query.trim()) throw new Error('query is required');
 
     const cfg = { ...this.init, ...options } as DomainSearchOptions;
@@ -146,9 +146,9 @@ export class DomainSearchClient {
 
   private scoreCandidates(
     candidates: Partial<DomainCandidate & { strategy?: string }>[],
-    prepared: PreparedRequest,
+    request: RequestContext,
   ): DomainCandidate[] {
-    const { cfg, cc } = prepared;
+    const { cfg, cc } = request;
     const supported = cfg.supportedTlds || [];
     const results: DomainCandidate[] = [];
     for (const cand of candidates) {
@@ -183,14 +183,14 @@ export class DomainSearchClient {
         strategy: r.strategy,
       }));
     }
-    const processed: ProcessedQueryInfo = {
-      tokens: preparedTokensCache?.tokens || normalizeTokens(options.query),
-      finalQuery: (preparedTokensCache?.tokens || normalizeTokens(options.query)).join(''),
-      cc: preparedTokensCache?.cc ?? getCcTld(options.location),
-      supportedTlds: preparedTokensCache?.supportedTlds || (options.supportedTlds || this.init.supportedTlds).map(normalizeTld),
-      defaultTlds: preparedTokensCache?.defaultTlds || (options.defaultTlds || this.init.defaultTlds).map(normalizeTld),
-      limit: preparedTokensCache?.limit ?? (options.limit ?? this.init.limit),
-      offset: preparedTokensCache?.offset ?? (options.offset ?? this.init.offset),
+    const processedInfo: ProcessedQueryInfo = {
+      tokens: requestCache?.tokens || normalizeTokens(options.query),
+      finalQuery: (requestCache?.tokens || normalizeTokens(options.query)).join(''),
+      cc: requestCache?.cc ?? getCcTld(options.location),
+      supportedTlds: requestCache?.supportedTlds || (options.supportedTlds || this.init.supportedTlds).map(normalizeTld),
+      defaultTlds: requestCache?.defaultTlds || (options.defaultTlds || this.init.defaultTlds).map(normalizeTld),
+      limit: requestCache?.limit ?? (options.limit ?? this.init.limit),
+      offset: requestCache?.offset ?? (options.offset ?? this.init.offset),
       location: options.location,
       includeHyphenated: options.includeHyphenated,
     };
@@ -203,13 +203,13 @@ export class DomainSearchClient {
         totalGenerated,
         filterApplied,
       },
-      processed,
+      processed: processedInfo,
     };
   }
 }
 
 // Internal types for clarity of orchestration
-type PreparedRequest = {
+type RequestContext = {
   cfg: DomainSearchOptions & { supportedTlds: string[]; defaultTlds: string[]; synonyms: Record<string, string[]> };
   cc?: string;
   limit: number;
@@ -217,8 +217,8 @@ type PreparedRequest = {
   tokens: string[];
 };
 
-// Simple cache to make processed details available to buildResponse without changing its signature
-let preparedTokensCache: {
+// Simple cache to make request details available to buildResponse without changing its signature
+let requestCache: {
   tokens: string[];
   cc?: string;
   supportedTlds: string[];

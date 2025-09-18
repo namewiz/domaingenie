@@ -374,8 +374,6 @@
 
       // Prevent stale async updates when user keeps typing
       let renderToken = 0;
-      // Debounce timer for input
-      let debounceId;
 
       function sanitize(term) {
         return (term || '').trim();
@@ -502,18 +500,25 @@
         }
       }
 
-      function onInput() {
-        clearTimeout(debounceId);
-        offset = 0; // reset to first page on new input
-        const value = q.value;
-        debounceId = setTimeout(() => {
+      // Trigger search only when user presses Enter
+      q.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          offset = 0; // reset to first page on new search
+          const value = q.value;
           updateURL({ query: value, limit: PAGE_SIZE, offset });
           renderFromQuery(value);
-        }, 150);
-      }
+        }
+      });
 
-      q.addEventListener('input', onInput);
-      clear.addEventListener('click', () => { q.value = ''; onInput(); q.focus(); });
+      // Clear input and reset results (no auto-search while typing)
+      clear.addEventListener('click', () => {
+        q.value = '';
+        offset = 0;
+        updateURL({ query: '', limit: PAGE_SIZE, offset });
+        renderFromQuery('');
+        q.focus();
+      });
 
       // Pager controls
       prevBtn.addEventListener('click', () => {

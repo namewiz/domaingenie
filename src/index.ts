@@ -1,8 +1,9 @@
 import { generateCandidates } from './generator';
+import { getPerformance } from './perf';
 import { rankDomains, scoreDomain } from './ranking';
 import { expandSynonyms } from './synonyms';
 import tlds from "./tlds.json" assert { type: "json" };
-import { ClientInitOptions, DomainCandidate, DomainSearchOptions, SearchResponse, ProcessedQueryInfo } from './types';
+import { ClientInitOptions, DomainCandidate, DomainSearchOptions, LatencyMetrics, ProcessedQueryInfo, SearchResponse } from './types';
 import { getCcTld, isValidTld, normalizeTld, normalizeTokens } from './utils';
 
 const TLD_MAP: Record<string, string | boolean> = {
@@ -41,14 +42,29 @@ const DEFAULT_INIT_OPTIONS: Required<ClientInitOptions> = {
   },
 };
 
+function createLatencyMetrics(): LatencyMetrics {
+  return {
+    total: 0,
+    requestProcessing: 0,
+    domainGeneration: 0,
+    scoring: 0,
+    ranking: 0,
+    strategies: {},
+  };
+}
 
-function error(message: string): SearchResponse {
+function error(message: string, latency: LatencyMetrics = createLatencyMetrics()): SearchResponse {
   return {
     results: [],
     success: false,
     includesAiGenerations: false,
     message,
-    metadata: { searchTime: 0, totalGenerated: 0, filterApplied: false },
+    metadata: {
+      searchTime: Math.round(latency.total),
+      totalGenerated: 0,
+      filterApplied: false,
+      latency,
+    },
   };
 }
 
@@ -68,41 +84,68 @@ export class DomainSearchClient {
   }
 
   async search(options: DomainSearchOptions): Promise<SearchResponse> {
-    const start = Date.now();
+    console.log("starting search", options)
+    const performance = await getPerformance();
+    const totalTimer = performance.start('total-search');
+    const latency = createLatencyMetrics();
 
-    // 1) Process search request
-    let request: RequestContext;
     try {
-      request = this.processRequest(options);
-      // Expose request details to buildResponse without widening its signature
-      requestCache = {
-        tokens: request.tokens,
-        cc: request.cc,
-        supportedTlds: request.cfg.supportedTlds,
-        defaultTlds: request.cfg.defaultTlds,
-        limit: request.limit,
-        offset: request.offset,
-      };
-    } catch (e: any) {
-      return error(e?.message || 'invalid request');
+      // 1) Process search request
+      const requestTimer = performance.start('request-processing');
+      let request: RequestContext;
+      try {
+        request = this.processRequest(options);
+      } catch (e: any) {
+        const requestDuration = requestTimer.stop();
+        latency.requestProcessing = requestDuration;
+        latency.total = totalTimer.stop();
+        return error(e?.message || 'invalid request', latency);
+      }
+      const requestDuration = requestTimer.stop();
+      latency.requestProcessing = requestDuration;
+
+      // 2) Generate candidates
+      const generationTimer = performance.start('domain-generation');
+      let rawCandidates: Partial<DomainCandidate & { strategy?: string }>[] = [];
+      try {
+        rawCandidates = await generateCandidates(request.cfg);
+      } finally {
+        const generationDuration = generationTimer.stop();
+        latency.domainGeneration = generationDuration;
+      }
+
+      // 3) Score candidates
+      const scoringTimer = performance.start('scoring');
+      let scored: DomainCandidate[] = [];
+      try {
+        scored = this.scoreCandidates(rawCandidates, request);
+      } finally {
+        const scoringDuration = scoringTimer.stop();
+        latency.scoring = scoringDuration;
+      }
+
+      // 4) Rank candidates (account for offset by expanding limit then slicing)
+      const rankingTimer = performance.start('ranking');
+      let ranked: DomainCandidate[] = [];
+      try {
+        const rankLimit = request.limit + (request.offset || 0);
+        const rankedAll = rankDomains(scored, rankLimit);
+        ranked = (request.offset || 0) > 0 ? rankedAll.slice(request.offset) : rankedAll;
+      } finally {
+        const rankingDuration = rankingTimer.stop();
+        latency.ranking = rankingDuration;
+      }
+
+      // 5) Return results
+      const totalDuration = totalTimer.stop();
+      latency.total = totalDuration;
+      const totalGenerated = rawCandidates.length;
+      const response = this.buildResponse(ranked, options, latency, totalGenerated, !!options.supportedTlds);
+      console.log("response: ", response);
+      return response;
+    } finally {
+      totalTimer.stop();
     }
-
-    // 2) Generate candidates
-    const rawCandidates = await generateCandidates(request.cfg);
-
-    // 3) Score candidates
-    const scored = this.scoreCandidates(rawCandidates, request);
-
-    // 4) Rank candidates (account for offset by expanding limit then slicing)
-    const rankLimit = request.limit + (request.offset || 0);
-    const rankedAll = rankDomains(scored, rankLimit);
-    const ranked = (request.offset || 0) > 0 ? rankedAll.slice(request.offset) : rankedAll;
-
-    // 5) Return results
-    const end = Date.now();
-    const response = this.buildResponse(ranked, options, end - start, scored.length, !!options.supportedTlds);
-    requestCache = null;
-    return response;
   }
 
   // Step 1: Process search request (validate, normalize, enrich)
@@ -170,7 +213,7 @@ export class DomainSearchClient {
   private buildResponse(
     ranked: DomainCandidate[],
     options: DomainSearchOptions,
-    searchTime: number,
+    latency: LatencyMetrics,
     totalGenerated: number,
     filterApplied: boolean,
   ): SearchResponse {
@@ -199,9 +242,10 @@ export class DomainSearchClient {
       success: true,
       includesAiGenerations: !!options.useAi,
       metadata: {
-        searchTime,
+        searchTime: Math.round(latency.total),
         totalGenerated,
         filterApplied,
+        latency,
       },
       processed: processedInfo,
     };
@@ -234,5 +278,6 @@ export {
 } from './strategies';
 export type {
   ClientInitOptions,
-  DomainCandidate, DomainSearchOptions, GenerationStrategy, DomainScore as ScoreBreakdown, SearchMetadata, SearchResponse, ProcessedQueryInfo
+  DomainCandidate, DomainSearchOptions, GenerationStrategy, LatencyMetrics, ProcessedQueryInfo, DomainScore as ScoreBreakdown, SearchMetadata, SearchResponse
 } from './types';
+

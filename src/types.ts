@@ -45,11 +45,22 @@ export interface DomainCandidate {
   strategy?: string;
 }
 
+/** Describes the latency measurements captured for a search. */
+export interface LatencyMetrics {
+  total: number;
+  requestProcessing: number;
+  domainGeneration: number;
+  scoring: number;
+  ranking: number;
+  strategies: Record<string, number>;
+}
+
 /** Metadata describing a search operation. */
 export interface SearchMetadata {
   searchTime: number;
   totalGenerated: number;
   filterApplied: boolean;
+  latency: LatencyMetrics;
 }
 
 /** Details about the processed query and resolved config. */

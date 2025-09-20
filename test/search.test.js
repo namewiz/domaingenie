@@ -14,6 +14,10 @@ test('search generates ranked domain suggestions', async t => {
     t.true(result.results[i - 1].score.total >= result.results[i].score.total);
   }
   t.truthy(result.results[0].score.components);
+  t.truthy(result.metadata.latency);
+  t.true(typeof result.metadata.latency.total === 'number');
+  t.true(typeof result.metadata.latency.requestProcessing === 'number');
+  t.truthy(result.metadata.latency.strategies);
 });
 
 test('location maps to ccTLD and hyphen variants generated', async t => {

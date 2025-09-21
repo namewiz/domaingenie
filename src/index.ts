@@ -9,26 +9,19 @@ import { getCcTld, isValidTld, normalizeTld, normalizeTokens } from './utils';
 const TLD_MAP: Record<string, string | boolean> = {
   ...(tlds as any).popular,
   ...(tlds as any).gTLDs,
-  ...(tlds as any).ccTLDs,
-  ...(tlds as any).SLDs,
 };
 
 const DEFAULT_INIT_OPTIONS: Required<ClientInitOptions> = {
-  defaultTlds: ['com', 'ng'],
+  defaultTlds: ['com', 'ng', 'com.ng', 'site', 'org', 'net', 'edu.ng', 'name.ng', 'sch.ng', 'io'],
   supportedTlds: Object.keys(TLD_MAP),
   limit: 20,
   offset: 0,
   // more here - https://gist.github.com/marcanuy/06cb00bc36033cd12875
   prefixes: [
-    'my', 'the', 'get', 'try', 'go', 'global', 'one', 'pro', 'best',
-    'hey', 'on', 'up', 'we', 'our', 'new', 'now', 'top', 'ez',
-    'you', 'max', 'neo', 're', 'be', 'do', 'co', 'hub', 'i', 'u',
-    'easy', 'fast', 'free', 'just', 'true', 'next', 'real', 'pure', 'good'
+    'try', 'the', 'get', 'go',
   ],
   suffixes: [
-    'ly', 'ify', 'hq', 'hub', 'app', 'web', 'spot', 'inc', 'site',
-    'io', 'ai', 'up', 'it', 'go', 'co', 'fy', 'me', 'now', 'lab',
-    'dev', 'tech', 'net', 'one', 'pay', 'kit', 'bot', 'base', 'box'
+    'ly', 'hq', 'hub', 'app', 'labs',
   ],
   maxSynonyms: 5,
   tldWeights: {

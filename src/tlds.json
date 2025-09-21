@@ -195,32 +195,5 @@
     "world": true,
     "wtf": true,
     "zone": true
-  },
-  "ccTLDs": {
-    "ac": true,
-    "ad": true,
-    "ae": true,
-    "af": true,
-    "ag": true,
-    "ai": true,
-    "al": true,
-    "am": true,
-    "ao": true,
-    "aq": true,
-    "ng": true,
-    "uk": true,
-    "us": true
-  },
-  "SLDs": {
-    "co.za": true,
-    "com.bd": true,
-    "com.ck": true,
-    "com.ng": true,
-    "edu.ng": true,
-    "gov.ng": true,
-    "name.ng": true,
-    "net.ng": true,
-    "org.ng": true,
-    "sch.ng": true
   }
 }

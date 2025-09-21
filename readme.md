@@ -42,7 +42,7 @@ Create a client with default search configuration.
 | `limit` | `number` | `20` | Maximum number of domains returned. |
 | `prefixes` | `string[]` | – | Prefixes used for generating variants. |
 | `suffixes` | `string[]` | – | Suffixes used for generating variants. |
-| `maxSynonyms` | `number` | `5` | Maximum number of synonyms to expand. |
+| `maxSynonyms` | `number` | `5` | Maximum number of synonyms to expand (capped at 10). |
 | `tldWeights` | `Record<string, number>` | – | Weights used when ranking TLDs. |
 
 ### `client.search(options)`
@@ -54,7 +54,6 @@ Search for domain names. `options` extend the init options so each call can over
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `query` | `string` | – | Search term to expand. |
-| `keywords` | `string[]` | – | Additional keywords to combine with the query. |
 | `location` | `string` | – | ISO country code used to include a ccTLD. |
 | `debug` | `boolean` | `false` | When `true`, includes extra debug fields. |
 | `useAi` | `boolean` | `false` | Expand ideas using AI generation. |

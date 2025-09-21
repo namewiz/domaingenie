@@ -58,5 +58,5 @@ export {
 } from './strategies';
 export type {
   ClientInitOptions,
-  DomainCandidate, DomainSearchOptions, GenerationStrategy, LatencyMetrics, ProcessedQueryInfo, DomainScore as ScoreBreakdown, SearchMetadata, SearchResponse
+  DomainCandidate, DomainSearchOptions, GenerationStrategy, LatencyMetrics, ProcessedQuery, DomainScore as ScoreBreakdown, SearchMetadata, SearchResponse
 } from './types';

@@ -1,16 +1,24 @@
 import test from 'ava';
 import { generateCandidates } from '../dist/index.js';
 
+const buildProcessed = (overrides = {}) => ({
+  query: 'fast tech',
+  tokens: ['fast', 'tech'],
+  synonyms: { fast: [], tech: [] },
+  orderedTlds: ['com'],
+  includeHyphenated: false,
+  limit: 50,
+  prefixes: [],
+  suffixes: [],
+  ...overrides,
+});
+
 test('generator produces permutations, hyphenated and affix variants', async t => {
-  const candidates = await generateCandidates({
-    query: 'fast tech',
+  const candidates = await generateCandidates(buildProcessed({
+    includeHyphenated: true,
     prefixes: ['pre'],
     suffixes: ['suf'],
-    supportedTlds: ['com'],
-    defaultTlds: [],
-    maxSynonyms: 1,
-    includeHyphenated: true,
-  });
+  }));
   const domains = candidates.map(c => c.domain);
   t.true(domains.includes('fasttech.com'));
   t.true(domains.includes('techfast.com'));
@@ -20,11 +28,13 @@ test('generator produces permutations, hyphenated and affix variants', async t =
 });
 
 test('generator produces tldHack variants', async t => {
-  const hack = await generateCandidates({
+  const hack = await generateCandidates(buildProcessed({
     query: 'brandly',
-    supportedTlds: ['ly'],
-    defaultTlds: [],
-    maxSynonyms: 1,
-  });
+    tokens: ['brandly'],
+    synonyms: { brandly: [] },
+    orderedTlds: ['ly'],
+    prefixes: [],
+    suffixes: [],
+  }));
   t.true(hack.some(c => c.domain === 'brand.ly'));
 });

@@ -1,5 +1,5 @@
 import synonymsLib from 'synonyms';
-import type { DomainCandidate, DomainScore, RequestContext } from './types';
+import type { DomainCandidate, DomainScore, ProcessedQuery } from './types';
 import { vowelRatio } from './utils';
 
 const DEFAULT_TLD_WEIGHTS: Record<string, number> = {
@@ -155,19 +155,21 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
 
 export function scoreCandidates(
   candidates: Partial<DomainCandidate & { strategy?: string }>[],
-  request: RequestContext,
+  processed: ProcessedQuery,
+  locationTld?: string,
+  tldWeights: Record<string, number> = {},
 ): DomainCandidate[] {
-  const { cfg, cc } = request;
-  const supported = cfg.supportedTlds || [];
+  const supported = new Set(processed.orderedTlds.map(t => t.toLowerCase()));
   const results: DomainCandidate[] = [];
   for (const cand of candidates) {
     if (!cand.domain || !cand.suffix) continue;
-    if (!supported.includes(cand.suffix)) continue;
+    const suffix = cand.suffix.toLowerCase();
+    if (supported.size && !supported.has(suffix)) continue;
     const label = cand.domain.slice(0, -(cand.suffix.length + 1));
-    const score = scoreDomain(label, cand.suffix, cc, { tldWeights: cfg.tldWeights });
+    const score = scoreDomain(label, suffix, locationTld, { tldWeights });
     results.push({
       domain: cand.domain,
-      suffix: cand.suffix,
+      suffix,
       strategy: cand.strategy,
       score,
       isAvailable: false,

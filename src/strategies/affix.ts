@@ -1,26 +1,26 @@
 /**
  * Generates domain variants by applying prefixes and suffixes to token combinations.
 */
-import { expandSynonyms } from '../synonyms';
-import { DomainCandidate, DomainSearchOptions, GenerationStrategy } from '../types';
-import { combine, normalizeTokens } from '../utils';
+import { DomainCandidate, GenerationStrategy, ProcessedQuery } from '../types';
+import { combine } from '../utils';
 
 export class AffixStrategy implements GenerationStrategy {
-  async generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]> {
-    const prefixes = opts.prefixes ?? [];
-    const suffixes = opts.suffixes ?? [];
-    const tlds = Array.from(new Set([...(opts.supportedTlds || []), ...(opts.defaultTlds || [])]));
+  async generate(query: ProcessedQuery): Promise<Partial<DomainCandidate>[]> {
+    const prefixes = query.prefixes ?? [];
+    const suffixes = query.suffixes ?? [];
+    const tlds = query.orderedTlds;
     if ((!prefixes.length && !suffixes.length) || !tlds.length) return [];
 
-    const tokens = normalizeTokens(opts.query);
-    const keywords = (opts.keywords || []).map(k => k.toLowerCase());
-    const maxSynonyms = opts.maxSynonyms ?? 5;
-    const synLists = tokens.map(t => expandSynonyms(t, maxSynonyms));
-    if (keywords.length) synLists.push(keywords);
-    const bases = combine(synLists, '');
+    const synLists = query.tokens.map(token => {
+      const synonyms = query.synonyms[token] ?? [];
+      return [token, ...synonyms];
+    });
+    const bases = synLists.length ? combine(synLists, '') : [];
+    const baseSet = new Set(bases.length ? bases : query.tokens);
 
     const results: Partial<DomainCandidate>[] = [];
-    for (const base of bases) {
+    for (const base of baseSet) {
+      if (!base) continue;
       if (prefixes.length) {
         for (const pre of prefixes) {
           const label = pre + base;

@@ -2,8 +2,8 @@ import { generateCandidates } from './generator';
 import { getPerformance } from './perf';
 import { rankDomains, scoreCandidates } from './ranking';
 import { expandSynonyms } from './synonyms';
-import { ClientInitOptions, DomainCandidate, DomainSearchOptions, LatencyMetrics, ProcessedQueryInfo, RequestContext, SearchResponse } from './types';
-import { getCcTld, isValidTld, normalizeTld, normalizeTokens } from './utils';
+import { ClientInitOptions, DomainCandidate, DomainSearchOptions, LatencyMetrics, ProcessedQuery, SearchResponse } from './types';
+import { getCcTld, isValidTld, normalizeTld, normalizeTokens, unique } from './utils';
 
 export function createLatencyMetrics(): LatencyMetrics {
   return {
@@ -15,6 +15,14 @@ export function createLatencyMetrics(): LatencyMetrics {
     strategies: {},
   };
 }
+
+type PreparedRequest = {
+  processed: ProcessedQuery;
+  offset: number;
+  locationTld?: string;
+  tldWeights: Record<string, number>;
+  filterApplied: boolean;
+};
 
 function error(message: string, latency: LatencyMetrics = createLatencyMetrics()): SearchResponse {
   return {
@@ -43,9 +51,9 @@ export async function executeSearch(
   try {
     // 1) Process search request
     const requestTimer = performance.start('request-processing');
-    let request: RequestContext;
+    let prepared: PreparedRequest;
     try {
-      request = processRequest(init, options);
+      prepared = processRequest(init, options);
     } catch (e: any) {
       const requestDuration = requestTimer.stop();
       latency.requestProcessing = requestDuration;
@@ -59,7 +67,7 @@ export async function executeSearch(
     const generationTimer = performance.start('domain-generation');
     let rawCandidates: Partial<DomainCandidate & { strategy?: string }>[] = [];
     try {
-      rawCandidates = await generateCandidates(request.cfg);
+      rawCandidates = await generateCandidates(prepared.processed);
     } finally {
       const generationDuration = generationTimer.stop();
       latency.domainGeneration = generationDuration;
@@ -69,7 +77,7 @@ export async function executeSearch(
     const scoringTimer = performance.start('scoring');
     let scored: DomainCandidate[] = [];
     try {
-      scored = scoreCandidates(rawCandidates, request);
+      scored = scoreCandidates(rawCandidates, prepared.processed, prepared.locationTld, prepared.tldWeights);
     } finally {
       const scoringDuration = scoringTimer.stop();
       latency.scoring = scoringDuration;
@@ -79,9 +87,9 @@ export async function executeSearch(
     const rankingTimer = performance.start('ranking');
     let ranked: DomainCandidate[] = [];
     try {
-      const rankLimit = request.limit + (request.offset || 0);
+      const rankLimit = prepared.processed.limit + (prepared.offset || 0);
       const rankedAll = rankDomains(scored, rankLimit);
-      ranked = (request.offset || 0) > 0 ? rankedAll.slice(request.offset) : rankedAll;
+      ranked = (prepared.offset || 0) > 0 ? rankedAll.slice(prepared.offset) : rankedAll;
     } finally {
       const rankingDuration = rankingTimer.stop();
       latency.ranking = rankingDuration;
@@ -91,7 +99,7 @@ export async function executeSearch(
     const totalDuration = totalTimer.stop();
     latency.total = totalDuration;
     const totalGenerated = rawCandidates.length;
-    const response = buildResponse(ranked, options, latency, totalGenerated, !!options.supportedTlds, request);
+    const response = buildResponse(ranked, options, latency, totalGenerated, prepared.filterApplied, prepared.processed);
     console.log("search latency: ", JSON.stringify(response.metadata.latency, null, 2));
     return response;
   } finally {
@@ -102,7 +110,7 @@ export async function executeSearch(
 function processRequest(
   init: Required<ClientInitOptions>,
   options: DomainSearchOptions
-): RequestContext {
+): PreparedRequest {
   if (!options.query || !options.query.trim()) throw new Error('query is required');
 
   const cfg = { ...init, ...options } as DomainSearchOptions;
@@ -111,33 +119,67 @@ function processRequest(
   const offset = cfg.offset ?? init.offset ?? 0;
   if (!Number.isFinite(offset) || (offset as number) < 0) throw new Error('offset must be >= 0');
 
-  if (options.keywords && !Array.isArray(options.keywords)) throw new Error('keywords must be an array');
   if (options.supportedTlds && !Array.isArray(options.supportedTlds)) throw new Error('supportedTlds must be an array');
   if (options.defaultTlds && !Array.isArray(options.defaultTlds)) throw new Error('defaultTlds must be an array');
 
-  const supportedTlds = (cfg.supportedTlds || []).map(normalizeTld);
-  const defaultTlds = (cfg.defaultTlds || []).map(normalizeTld);
-  for (const t of [...supportedTlds, ...defaultTlds]) {
+  const prefixes = Array.isArray(cfg.prefixes) ? cfg.prefixes : [];
+  const suffixes = Array.isArray(cfg.suffixes) ? cfg.suffixes : [];
+
+  const rawTokens = normalizeTokens(cfg.query);
+  const tokens = unique(rawTokens);
+
+  const hasSupportedOverride = Array.isArray(options.supportedTlds) && options.supportedTlds.length > 0;
+  const defaultSource = (options.defaultTlds ?? (hasSupportedOverride ? [] : init.defaultTlds) ?? []).map(normalizeTld);
+  const supportedSource = (options.supportedTlds ?? init.supportedTlds ?? []).map(normalizeTld);
+
+  for (const t of [...defaultSource, ...supportedSource]) {
     if (!isValidTld(t)) throw new Error(`invalid tld: ${t}`);
   }
 
-  const cc = getCcTld(options.location);
-  if (cc && !supportedTlds.includes(cc)) supportedTlds.push(cc);
-  if (cc && !defaultTlds.includes(cc)) defaultTlds.push(cc);
+  const locationTldRaw = getCcTld(options.location);
+  const locationTld = locationTldRaw ? normalizeTld(locationTldRaw) : undefined;
+  if (locationTld && !isValidTld(locationTld)) throw new Error(`invalid tld: ${locationTld}`);
 
-  cfg.supportedTlds = supportedTlds;
-  cfg.defaultTlds = defaultTlds;
+  const tokenSet = new Set(tokens);
+  const supportedTlds = hasSupportedOverride
+    ? supportedSource
+    : supportedSource.filter(t => tokenSet.has(t));
 
-  // Precompute synonyms for tokens to avoid recomputation in strategies
-  const tokens = normalizeTokens(cfg.query);
-  const maxSynonyms = cfg.maxSynonyms ?? 5;
-  const synMap: Record<string, string[]> = {};
-  for (const t of tokens) {
-    synMap[t] = expandSynonyms(t, maxSynonyms);
+  const orderedTlds: string[] = [];
+  const pushTld = (t?: string) => {
+    if (!t) return;
+    if (!orderedTlds.includes(t)) orderedTlds.push(t);
+  };
+
+  defaultSource.forEach(pushTld);
+  pushTld(locationTld);
+  supportedTlds.forEach(pushTld);
+
+  const synonymLimit = Math.max(0, Math.min(cfg.maxSynonyms ?? 10, 10));
+  const synonyms: Record<string, string[]> = {};
+  for (const token of tokens) {
+    const list = expandSynonyms(token, synonymLimit);
+    synonyms[token] = list;
   }
-  cfg.synonyms = synMap;
 
-  return { cfg, cc, limit: limit as number, offset: offset as number, tokens };
+  const processed: ProcessedQuery = {
+    query: cfg.query,
+    tokens,
+    synonyms,
+    orderedTlds,
+    includeHyphenated: !!cfg.includeHyphenated,
+    limit: limit as number,
+    prefixes,
+    suffixes,
+  };
+
+  return {
+    processed,
+    offset: offset as number,
+    locationTld,
+    tldWeights: cfg.tldWeights || {},
+    filterApplied: hasSupportedOverride,
+  };
 }
 
 function buildResponse(
@@ -146,7 +188,7 @@ function buildResponse(
   latency: LatencyMetrics,
   totalGenerated: number,
   filterApplied: boolean,
-  request: RequestContext
+  processed: ProcessedQuery
 ): SearchResponse {
   let finalResults: DomainCandidate[] = ranked;
   if (!options.debug) {
@@ -158,18 +200,6 @@ function buildResponse(
     }));
   }
 
-  const processedInfo: ProcessedQueryInfo = {
-    tokens: request.tokens,
-    finalQuery: request.tokens.join(''),
-    cc: request.cc ?? getCcTld(options.location),
-    supportedTlds: request.cfg.supportedTlds,
-    defaultTlds: request.cfg.defaultTlds,
-    limit: request.limit,
-    offset: request.offset,
-    location: options.location,
-    includeHyphenated: options.includeHyphenated,
-  };
-
   return {
     results: finalResults,
     success: true,
@@ -180,6 +210,6 @@ function buildResponse(
       filterApplied,
       latency,
     },
-    processed: processedInfo,
+    processed,
   };
 }

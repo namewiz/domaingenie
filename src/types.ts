@@ -16,14 +16,11 @@ export interface ClientInitOptions {
 /** Per-search options extending the client defaults. */
 export interface DomainSearchOptions extends ClientInitOptions {
   query: string;
-  keywords?: string[];
   location?: string;
   debug?: boolean;
   useAi?: boolean;
   // Whether to generate hyphenated label variants (e.g., foo-bar)
   includeHyphenated?: boolean;
-  // Precomputed synonyms per normalized token (filled by search())
-  synonyms?: Record<string, string[]>;
 }
 
 // Results --------------------------------------------------------------------
@@ -63,23 +60,16 @@ export interface SearchMetadata {
   latency: LatencyMetrics;
 }
 
-/** Details about the processed query and resolved config. */
-export interface ProcessedQueryInfo {
-  // Normalized tokens extracted from the input query
+/** Simplified processed query shared across generation strategies. */
+export interface ProcessedQuery {
+  query: string;
   tokens: string[];
-  // Convenience: tokens joined without separators (e.g., "fasttech")
-  finalQuery: string;
-  // Country-code TLD derived from location, if any
-  cc?: string;
-  // Effective supported and default TLDs after normalization and location merge
-  supportedTlds: string[];
-  defaultTlds: string[];
-  // Effective limit and offset
+  synonyms: Record<string, string[]>;
+  orderedTlds: string[];
+  includeHyphenated: boolean;
   limit: number;
-  offset: number;
-  // Original request context that can affect generation/scoring
-  location?: string;
-  includeHyphenated?: boolean;
+  prefixes: string[];
+  suffixes: string[];
 }
 
 /** Response returned from a domain search. */
@@ -90,20 +80,12 @@ export interface SearchResponse {
   includesAiGenerations: boolean;
   metadata: SearchMetadata;
   // Final processed query details
-  processed?: ProcessedQueryInfo;
+  processed?: ProcessedQuery;
 }
 
 // Strategies -----------------------------------------------------------------
 
 /** Contract implemented by all generation strategies. */
 export interface GenerationStrategy {
-  generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]>;
+  generate(query: ProcessedQuery): Promise<Partial<DomainCandidate>[]>;
 }
-
-export type RequestContext = {
-  cfg: DomainSearchOptions & { supportedTlds: string[]; defaultTlds: string[]; synonyms: Record<string, string[]> };
-  cc?: string;
-  limit: number;
-  offset: number;
-  tokens: string[];
-};

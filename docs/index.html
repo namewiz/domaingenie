@@ -491,16 +491,22 @@
           // Summary line before results
           summary.textContent = `Generated ${metadata.totalGenerated.toLocaleString()} results in ${secs.toFixed(2)} secs`;
 
-          // Processed query table before results
+          // Processed query table before results (reflects new structure)
           if (processed) {
+            const synonymPairs = processed.synonyms ? Object.entries(processed.synonyms) : [];
+            const synonymLine = synonymPairs.length
+              ? synonymPairs.map(([k, arr]) => `${k}: ${(arr || []).join(', ')}`).join(' | ')
+              : '';
+
             const rows = [
-              ['Final Query', processed.finalQuery],
+              ['Query', processed.query],
               ['Tokens', (processed.tokens || []).join(', ')],
-              ['Location CC', processed.cc || ''],
-              ['Supported TLDs', (processed.supportedTlds || []).join(', ')],
-              ['Default TLDs', (processed.defaultTlds || []).join(', ')],
+              ['Synonyms', synonymLine],
+              ['Ordered TLDs', (processed.orderedTlds || []).join(', ')],
+              ['Include Hyphenated', String(!!processed.includeHyphenated)],
               ['Limit', String(processed.limit)],
-              ['Offset', String(processed.offset)],
+              ['Prefixes', (processed.prefixes || []).join(', ')],
+              ['Suffixes', (processed.suffixes || []).join(', ')],
             ];
             const tbl = document.createElement('table');
             tbl.className = 'proc-table';

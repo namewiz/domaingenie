@@ -27,6 +27,9 @@
       box-sizing: border-box
     }
 
+    /* Ensure hidden attribute consistently hides elements */
+    [hidden] { display: none !important; }
+
     html,
     body {
       height: 100%;
@@ -45,9 +48,21 @@
     .wrap {
       max-width: 920px;
       width: 100%;
-      margin: 64px auto;
+      /* Keep some top spacing, but no bottom margin so footer can sit at the bottom */
+      margin: 64px auto 0;
       padding: 0 20px;
       flex: 1;
+      /* Make inner content a column so footer can push to the bottom */
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Sticky footer within the wrap */
+    .wrap footer {
+      /* Push footer to bottom when content is short */
+      margin-top: auto;
+      /* Preserve visual spacing above footer */
+      padding-top: 48px;
     }
 
     h1 {
@@ -111,6 +126,34 @@
       margin: 20px 0 0;
       font-size: 14px;
       padding-left: 5px;
+    }
+
+    /* Loading indicator */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--muted);
+      margin-top: 50px;
+      padding-left: 0;
+      text-align: center;
+      width: 100%;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--ring);
+      border-top-color: var(--top-accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     /* Dev mode chip beside title */
@@ -303,6 +346,11 @@
     </div>
     <div class="proc-wrap" id="processed-wrap" hidden></div>
 
+    <div class="loading" id="loading" role="status" aria-live="polite" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <span>Searching…</span>
+    </div>
+
     <div class="summary" id="result-summary" aria-live="polite"></div>
     <div class="list" id="results" aria-live="polite"></div>
     <div class="pager" id="pager" aria-label="Pagination controls" hidden>
@@ -312,7 +360,7 @@
     </div>
 
 
-    <footer style="margin:48px auto 0px; padding-bottom: 40px; text-align:center;color:#6b7280;font-size:14px;">
+    <footer style="margin:0 auto 0; margin-top:auto; padding-top:48px; padding-bottom: 40px; text-align:center;color:#6b7280;font-size:14px;">
       Made with ❤️ by Justice &amp; AI. <a href="https://github.com/namewiz/domaingenie" target="_blank"
         style="color:#2563eb;text-decoration:none;">Source code</a>
     </footer>
@@ -361,6 +409,7 @@
       const results = document.getElementById('results');
       const summary = document.getElementById('result-summary');
       const processedWrap = document.getElementById('processed-wrap');
+      const loading = document.getElementById('loading');
       const q = document.getElementById('q');
       const clear = document.getElementById('clear');
       const prevBtn = document.getElementById('prev');
@@ -420,7 +469,15 @@
         summary.textContent = '';
         processedWrap.hidden = true;
         processedWrap.innerHTML = '';
+        // Always reset loading state at the start of a new render
+        if (loading) loading.hidden = true;
+        results.removeAttribute('aria-busy');
+        if (pager) pager.hidden = true;
         if (!term) { updatePager(0, term); return; }
+
+        // Show loading indicator and mark results busy
+        if (loading) loading.hidden = false;
+        results.setAttribute('aria-busy', 'true');
 
         const tpl = document.getElementById('row');
 
@@ -497,6 +554,12 @@
           if (token !== renderToken) return;
           // render nothing on error for now
           updatePager(0, term);
+        } finally {
+          // Only the latest render controls the spinner
+          if (token === renderToken) {
+            if (loading) loading.hidden = true;
+            results.removeAttribute('aria-busy');
+          }
         }
       }
 

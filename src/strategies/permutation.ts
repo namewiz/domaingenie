@@ -15,7 +15,7 @@ export class PermutationStrategy implements GenerationStrategy {
     const perms = permute(synLists);
 
     const labels = new Set<string>();
-    const includeHyphenated = opts.includeHyphenated ?? true;
+    const includeHyphenated = opts.includeHyphenated ?? false;
     perms.forEach(lists => {
       for (const l of combine(lists, '')) labels.add(l);
       if (includeHyphenated && lists.length > 1) {

@@ -9,6 +9,7 @@ test('generator produces permutations, hyphenated and affix variants', async t =
     supportedTlds: ['com'],
     defaultTlds: [],
     maxSynonyms: 1,
+    includeHyphenated: true,
   });
   const domains = candidates.map(c => c.domain);
   t.true(domains.includes('fasttech.com'));

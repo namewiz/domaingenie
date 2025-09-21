@@ -38,6 +38,7 @@ export async function executeSearch(
   const performance = await getPerformance();
   const totalTimer = performance.start('total-search');
   const latency = createLatencyMetrics();
+  console.log("search request: ", options);
 
   try {
     // 1) Process search request
@@ -90,7 +91,9 @@ export async function executeSearch(
     const totalDuration = totalTimer.stop();
     latency.total = totalDuration;
     const totalGenerated = rawCandidates.length;
-    return buildResponse(ranked, options, latency, totalGenerated, !!options.supportedTlds, request);
+    const response = buildResponse(ranked, options, latency, totalGenerated, !!options.supportedTlds, request);
+    console.log("search latency: ", JSON.stringify(response.metadata.latency, null, 2));
+    return response;
   } finally {
     totalTimer.stop();
   }

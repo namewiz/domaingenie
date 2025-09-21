@@ -6,6 +6,7 @@ const opts = {
   supportedTlds: ['com'],
   defaultTlds: [],
   maxSynonyms: 1,
+  includeHyphenated: true,
 };
 
 test('permutation strategy handles multi-word query', async t => {

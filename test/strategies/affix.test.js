@@ -1,4 +1,5 @@
-import test from 'ava';
+import test from 'node:test';
+import assert from 'node:assert/strict';
 import { AffixStrategy } from '../../dist/index.js';
 
 const buildProcessed = (overrides = {}) => ({
@@ -13,15 +14,15 @@ const buildProcessed = (overrides = {}) => ({
   ...overrides,
 });
 
-test('affix strategy handles single-word query', async t => {
+test('affix strategy handles single-word query', async () => {
   const strategy = new AffixStrategy();
   const res = await strategy.generate(buildProcessed());
   const domains = res.map(r => r.domain);
-  t.true(domains.includes('prefast.com'));
-  t.true(domains.includes('fastsuf.com'));
+  assert.ok(domains.includes('prefast.com'));
+  assert.ok(domains.includes('fastsuf.com'));
 });
 
-test('affix strategy handles multi-word query', async t => {
+test('affix strategy handles multi-word query', async () => {
   const strategy = new AffixStrategy();
   const res = await strategy.generate(buildProcessed({
     query: 'fast tech',
@@ -29,6 +30,6 @@ test('affix strategy handles multi-word query', async t => {
     synonyms: { fast: [], tech: [] },
   }));
   const domains = res.map(r => r.domain);
-  t.true(domains.includes('prefasttech.com'));
-  t.true(domains.includes('fasttechsuf.com'));
+  assert.ok(domains.includes('prefasttech.com'));
+  assert.ok(domains.includes('fasttechsuf.com'));
 });

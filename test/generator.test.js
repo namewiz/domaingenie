@@ -1,4 +1,5 @@
-import test from 'ava';
+import test from 'node:test';
+import assert from 'node:assert/strict';
 import { generateCandidates } from '../dist/index.js';
 
 const buildProcessed = (overrides = {}) => ({
@@ -13,21 +14,21 @@ const buildProcessed = (overrides = {}) => ({
   ...overrides,
 });
 
-test('generator produces permutations, hyphenated and affix variants', async t => {
+test('generator produces permutations, hyphenated and affix variants', async () => {
   const candidates = await generateCandidates(buildProcessed({
     includeHyphenated: true,
     prefixes: ['pre'],
     suffixes: ['suf'],
   }));
   const domains = candidates.map(c => c.domain);
-  t.true(domains.includes('fasttech.com'));
-  t.true(domains.includes('techfast.com'));
-  t.true(domains.includes('fast-tech.com'));
-  t.true(domains.includes('prefasttech.com'));
-  t.true(domains.includes('fasttechsuf.com'));
+  assert.ok(domains.includes('fasttech.com'));
+  assert.ok(domains.includes('techfast.com'));
+  assert.ok(domains.includes('fast-tech.com'));
+  assert.ok(domains.includes('prefasttech.com'));
+  assert.ok(domains.includes('fasttechsuf.com'));
 });
 
-test('generator produces tldHack variants', async t => {
+test('generator produces tldHack variants', async () => {
   const hack = await generateCandidates(buildProcessed({
     query: 'brandly',
     tokens: ['brandly'],
@@ -36,5 +37,5 @@ test('generator produces tldHack variants', async t => {
     prefixes: [],
     suffixes: [],
   }));
-  t.true(hack.some(c => c.domain === 'brand.ly'));
+  assert.ok(hack.some(c => c.domain === 'brand.ly'));
 });

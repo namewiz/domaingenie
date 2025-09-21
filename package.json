@@ -5,9 +5,9 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/index.ts src/searchWorkerThread.ts --bundle --outdir=dist --platform=neutral --format=esm --external:worker_threads",
+    "build": "npx -y esbuild src/index.ts src/searchWorkerThread.ts --bundle --outdir=dist --platform=neutral --format=esm --external:worker_threads",
     "postbuild": "cp dist/index.js docs/domaingenie.js && cp dist/searchWorkerThread.js docs/searchWorkerThread.js",
-    "test": "npm run build && ava"
+    "test": "npm run build && node --test"
   },
   "homepage": "https://namewiz.github.io/domaingenie",
   "repository": {
@@ -32,9 +32,5 @@
   "dependencies": {
     "synonyms": "^1.0.1"
   },
-  "devDependencies": {
-    "ava": "^5.3.1",
-    "esbuild": "^0.25.9",
-    "typescript": "^5.3.3"
-  }
+  "devDependencies": {}
 }

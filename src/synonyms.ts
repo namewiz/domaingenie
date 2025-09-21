@@ -36,7 +36,8 @@ export function expandSynonyms(token: string, max = 10, extra: string[] = []): s
     .filter(e => e && e !== base && e.length <= 15);
   const baseSynonyms = cached ?? [];
   const combined = baseSynonyms.concat(extras);
-  const unique = Array.from(new Set(combined));
+  // Dedupe and remove single-letter candidates.
+  const unique = Array.from(new Set(combined)).filter(a => a.length > 1);
   unique.sort((a, b) => {
     if (a.length === b.length) return a.localeCompare(b);
     return a.length - b.length;

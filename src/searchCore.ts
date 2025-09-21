@@ -129,6 +129,16 @@ function processRequest(
   const rawTokens = normalizeTokens(cfg.query);
   const tokens = unique(rawTokens);
 
+  const synonymLimit = Math.max(0, Math.min(cfg.maxSynonyms ?? 10, 10));
+  const synonyms: Record<string, string[]> = {};
+  for (const token of tokens) {
+    let list = expandSynonyms(token, synonymLimit);
+    if (list.length === 0) {
+      list = expandSynonyms(stemmer(token), synonymLimit)
+    }
+    synonyms[token] = list;
+  }
+
   const hasSupportedOverride = Array.isArray(options.supportedTlds) && options.supportedTlds.length > 0;
   const defaultSource = (options.defaultTlds ?? (hasSupportedOverride ? [] : init.defaultTlds) ?? []).map(normalizeTld);
   const supportedSource = (options.supportedTlds ?? init.supportedTlds ?? []).map(normalizeTld);
@@ -142,9 +152,10 @@ function processRequest(
   if (locationTld && !isValidTld(locationTld)) throw new Error(`invalid tld: ${locationTld}`);
 
   const tokenSet = new Set(tokens);
+  const synonymSet = new Set(Object.values(synonyms).flat());
   const supportedTlds = hasSupportedOverride
     ? supportedSource
-    : supportedSource.filter(t => tokenSet.has(t));
+    : supportedSource.filter(t => tokenSet.has(t) || synonymSet.has(t));
 
   const orderedTlds: string[] = [];
   const pushTld = (t?: string) => {
@@ -155,16 +166,6 @@ function processRequest(
   defaultSource.forEach(pushTld);
   pushTld(locationTld);
   supportedTlds.forEach(pushTld);
-
-  const synonymLimit = Math.max(0, Math.min(cfg.maxSynonyms ?? 10, 10));
-  const synonyms: Record<string, string[]> = {};
-  for (const token of tokens) {
-    let list = expandSynonyms(token, synonymLimit);
-    if (list.length === 0) {
-      list = expandSynonyms(stemmer(token), synonymLimit)
-    }
-    synonyms[token] = list;
-  }
 
   const processed: ProcessedQuery = {
     query: cfg.query,

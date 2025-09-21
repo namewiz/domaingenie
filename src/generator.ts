@@ -20,5 +20,18 @@ export async function generateCandidates(
     const name = strategies[idx].name;
     arr.forEach(c => combined.push({ ...c, strategy: name }));
   });
-  return combined;
+
+  // Dedupe generations.
+  const seen = new Set<string>();
+  const deduped: Partial<DomainCandidate & { strategy: string }>[] = [];
+  for (const cand of combined) {
+    const domain = cand.domain?.toLowerCase();
+    if (domain) {
+      if (seen.has(domain)) continue;
+      seen.add(domain);
+    }
+    deduped.push(cand);
+  }
+
+  return deduped;
 }

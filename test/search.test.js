@@ -82,3 +82,24 @@ test('tld hacks generate dotted domains when supported', async t => {
   const res = await client.search({ query: 'brandly', supportedTlds: ['ly', 'com'], limit: 200 });
   t.true(res.results.some(r => r.domain === 'brand.ly'));
 });
+
+test('duplicate generated candidates are deduped before scoring', async t => {
+  const custom = new DomainSearchClient({
+    prefixes: [''],
+    suffixes: [],
+    supportedTlds: ['com'],
+    defaultTlds: ['com'],
+    maxSynonyms: 1,
+  });
+  const res = await custom.search({
+    query: 'foo',
+    limit: 5,
+    includeHyphenated: false,
+    debug: true,
+  });
+  const domains = res.results.map(r => r.domain);
+  t.is(new Set(domains).size, domains.length);
+  t.deepEqual(domains, ['foo.com']);
+  t.is(res.metadata.totalGenerated, 1);
+});
+

@@ -175,6 +175,8 @@ export function scoreCandidates(
       isAvailable: false,
     });
   }
+  // Sort by score (highest first) before returning
+  results.sort((a, b) => b.score.total - a.score.total);
   return results;
 }
 

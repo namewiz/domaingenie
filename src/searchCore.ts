@@ -1,3 +1,4 @@
+import { stemmer } from 'stemmer';
 import { generateCandidates } from './generator';
 import { getPerformance } from './perf';
 import { rankDomains, scoreCandidates } from './ranking';
@@ -158,7 +159,10 @@ function processRequest(
   const synonymLimit = Math.max(0, Math.min(cfg.maxSynonyms ?? 10, 10));
   const synonyms: Record<string, string[]> = {};
   for (const token of tokens) {
-    const list = expandSynonyms(token, synonymLimit);
+    let list = expandSynonyms(token, synonymLimit);
+    if (list.length === 0) {
+      list = expandSynonyms(stemmer(token), synonymLimit)
+    }
     synonyms[token] = list;
   }
 

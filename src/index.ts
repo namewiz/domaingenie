@@ -1,9 +1,9 @@
 import { generateCandidates } from './generator';
 import { getPerformance } from './perf';
-import { rankDomains, scoreDomain } from './ranking';
+import { rankDomains, scoreCandidates } from './ranking';
 import { expandSynonyms } from './synonyms';
 import tlds from "./tlds.json" assert { type: "json" };
-import { ClientInitOptions, DomainCandidate, DomainSearchOptions, LatencyMetrics, ProcessedQueryInfo, SearchResponse } from './types';
+import { ClientInitOptions, DomainCandidate, DomainSearchOptions, LatencyMetrics, ProcessedQueryInfo, RequestContext, SearchResponse } from './types';
 import { getCcTld, isValidTld, normalizeTld, normalizeTokens } from './utils';
 
 const TLD_MAP: Record<string, string | boolean> = {
@@ -111,7 +111,7 @@ export class DomainSearchClient {
       const scoringTimer = performance.start('scoring');
       let scored: DomainCandidate[] = [];
       try {
-        scored = this.scoreCandidates(rawCandidates, request);
+        scored = scoreCandidates(rawCandidates, request);
       } finally {
         const scoringDuration = scoringTimer.stop();
         latency.scoring = scoringDuration;
@@ -180,29 +180,6 @@ export class DomainSearchClient {
     return { cfg, cc, limit: limit as number, offset: offset as number, tokens };
   }
 
-  private scoreCandidates(
-    candidates: Partial<DomainCandidate & { strategy?: string }>[],
-    request: RequestContext,
-  ): DomainCandidate[] {
-    const { cfg, cc } = request;
-    const supported = cfg.supportedTlds || [];
-    const results: DomainCandidate[] = [];
-    for (const cand of candidates) {
-      if (!cand.domain || !cand.suffix) continue;
-      if (!supported.includes(cand.suffix)) continue;
-      const label = cand.domain.slice(0, -(cand.suffix.length + 1));
-      const score = scoreDomain(label, cand.suffix, cc, { tldWeights: cfg.tldWeights });
-      results.push({
-        domain: cand.domain,
-        suffix: cand.suffix,
-        strategy: cand.strategy,
-        score,
-        isAvailable: false,
-      });
-    }
-    return results;
-  }
-
   private buildResponse(
     ranked: DomainCandidate[],
     options: DomainSearchOptions,
@@ -245,15 +222,6 @@ export class DomainSearchClient {
   }
 }
 
-// Internal types for clarity of orchestration
-type RequestContext = {
-  cfg: DomainSearchOptions & { supportedTlds: string[]; defaultTlds: string[]; synonyms: Record<string, string[]> };
-  cc?: string;
-  limit: number;
-  offset: number;
-  tokens: string[];
-};
-
 // Simple cache to make request details available to buildResponse without changing its signature
 let requestCache: {
   tokens: string[];
@@ -265,7 +233,7 @@ let requestCache: {
 } | null = null;
 
 export { generateCandidates } from './generator';
-export { scoreDomain } from './ranking';
+export { scoreCandidates, scoreDomain } from './ranking';
 export {
   AffixStrategy, PermutationStrategy, TldHackStrategy
 } from './strategies';

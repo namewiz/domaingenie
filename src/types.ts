@@ -99,3 +99,11 @@ export interface SearchResponse {
 export interface GenerationStrategy {
   generate(opts: DomainSearchOptions): Promise<Partial<DomainCandidate>[]>;
 }
+
+export type RequestContext = {
+  cfg: DomainSearchOptions & { supportedTlds: string[]; defaultTlds: string[]; synonyms: Record<string, string[]> };
+  cc?: string;
+  limit: number;
+  offset: number;
+  tokens: string[];
+};

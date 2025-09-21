@@ -1,5 +1,5 @@
 import synonymsLib from 'synonyms';
-import type { DomainCandidate, DomainScore } from './types';
+import type { DomainCandidate, DomainScore, RequestContext } from './types';
 import { vowelRatio } from './utils';
 
 const DEFAULT_TLD_WEIGHTS: Record<string, number> = {
@@ -152,6 +152,30 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
 
   return out;
 }
+
+export function scoreCandidates(
+  candidates: Partial<DomainCandidate & { strategy?: string }>[],
+  request: RequestContext,
+): DomainCandidate[] {
+  const { cfg, cc } = request;
+  const supported = cfg.supportedTlds || [];
+  const results: DomainCandidate[] = [];
+  for (const cand of candidates) {
+    if (!cand.domain || !cand.suffix) continue;
+    if (!supported.includes(cand.suffix)) continue;
+    const label = cand.domain.slice(0, -(cand.suffix.length + 1));
+    const score = scoreDomain(label, cand.suffix, cc, { tldWeights: cfg.tldWeights });
+    results.push({
+      domain: cand.domain,
+      suffix: cand.suffix,
+      strategy: cand.strategy,
+      score,
+      isAvailable: false,
+    });
+  }
+  return results;
+}
+
 export function scoreDomain(label: string, tld: string, location?: string, config?: Partial<ScoringConfig> | ScoringConfig): DomainScore {
   const cfg: ScoringConfig = config instanceof ScoringConfig ? config : new ScoringConfig(config);
   const components: Record<string, number> = {};

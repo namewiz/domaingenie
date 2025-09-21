@@ -20,6 +20,14 @@ test('search generates ranked domain suggestions', async t => {
   t.truthy(result.metadata.latency.strategies);
 });
 
+test('stop words are removed from processed tokens', async t => {
+  const res = await client.search({ query: 'the fast and the curious', debug: true });
+  t.true(res.processed.tokens.includes('fast'));
+  t.true(res.processed.tokens.includes('curious'));
+  t.false(res.processed.tokens.includes('the'));
+  t.false(res.processed.tokens.includes('and'));
+});
+
 test('location maps to ccTLD and hyphen variants generated', async t => {
   const res = await client.search({ query: 'fast tech', location: 'us', limit: 200 });
   t.true(res.results.some(r => r.domain.includes('.us')));

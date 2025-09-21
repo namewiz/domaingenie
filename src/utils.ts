@@ -1,4 +1,7 @@
+import stopwords from './stopwords.json' assert { type: 'json' };
+
 const TLD_REGEX = /^[a-z]{2,}(?:\.[a-z]{2,})?$/i;
+const STOP_WORDS = new Set<string>((stopwords as string[]).map(word => word.toLowerCase()));
 const LOCATION_MAP: Record<string, string> = {
   'us': 'us',
   'uk': 'co.uk',
@@ -14,7 +17,8 @@ const LOCATION_MAP: Record<string, string> = {
  * Breaks an input string into lowercase alphanumeric tokens.
  */
 export function normalizeTokens(input: string): string[] {
-  return (input.toLowerCase().match(/[a-z0-9]+/g) || []);
+  const tokens = input.toLowerCase().match(/[a-z0-9]+/g) || [];
+  return tokens.filter(token => !STOP_WORDS.has(token));
 }
 
 /**

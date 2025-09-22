@@ -248,6 +248,7 @@ function processRequest(
     synonyms,
     orderedTlds,
     includeHyphenated: !!cfg.includeHyphenated,
+    checkAvailability: !!cfg.checkAvailability,
     limit: generationLimit,
     prefixes,
     suffixes,

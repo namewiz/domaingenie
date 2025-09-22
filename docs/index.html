@@ -400,6 +400,14 @@
       const initQuery = (initUrl.searchParams.get('query') || '').trim();
       const initLimitParam = parseInt(initUrl.searchParams.get('limit') || '30', 10);
       const initOffsetParam = parseInt(initUrl.searchParams.get('offset') || '0', 10);
+      const parseBoolParam = (val, fallback = true) => {
+        if (val == null) return fallback;
+        const s = String(val).trim().toLowerCase();
+        if (['1', 'true', 'yes', 'y', 'on'].includes(s)) return true;
+        if (['0', 'false', 'no', 'n', 'off'].includes(s)) return false;
+        return fallback;
+      };
+      const initCheckAvailability = parseBoolParam(initUrl.searchParams.get('checkAvailability'), true);
       const resolvedLimit = Number.isFinite(initLimitParam) && initLimitParam > 0 ? initLimitParam : 30;
 
       // Configure client and rendering behavior
@@ -434,9 +442,10 @@
       // Pagination state
       const PAGE_SIZE = client.getInitOptions().limit;
       let offset = Number.isFinite(initOffsetParam) && initOffsetParam > 0 ? initOffsetParam : 0;
+      let checkAvailability = initCheckAvailability;
 
       // Keep URL in sync with state
-      function updateURL({ query, limit, offset }) {
+      function updateURL({ query, limit, offset, checkAvailability }) {
         const url = new URL(window.location.href);
         const term = sanitize(query);
         if (term) url.searchParams.set('query', term); else url.searchParams.delete('query');
@@ -445,6 +454,8 @@
         // Only include offset when greater than zero
         if (Number.isFinite(offset) && offset > 0) url.searchParams.set('offset', String(offset));
         else url.searchParams.delete('offset');
+        // Persist availability choice explicitly
+        url.searchParams.set('checkAvailability', String(!!checkAvailability));
         history.replaceState({}, '', url);
       }
 
@@ -486,7 +497,7 @@
 
         try {
           const t0 = performance.now();
-          const res = await client.search({ query: term, offset, checkAvailability: true });
+          const res = await client.search({ query: term, offset, checkAvailability });
           const { results: items, metadata, processed } = res;
           const secs = (performance.now() - t0) / 1000;
           if (token !== renderToken) return; // stale render, skip
@@ -507,6 +518,7 @@
               ['Synonyms', synonymLine],
               ['Ordered TLDs', (processed.orderedTlds || []).join(', ')],
               ['Include Hyphenated', String(!!processed.includeHyphenated)],
+              ['Check Availability', String(processed.checkAvailability ?? checkAvailability)],
               ['Limit', String(processed.limit)],
               ['Prefixes', (processed.prefixes || []).join(', ')],
               ['Suffixes', (processed.suffixes || []).join(', ')],
@@ -578,7 +590,7 @@
           e.preventDefault();
           offset = 0; // reset to first page on new search
           const value = q.value;
-          updateURL({ query: value, limit: PAGE_SIZE, offset });
+          updateURL({ query: value, limit: PAGE_SIZE, offset, checkAvailability });
           renderFromQuery(value);
         }
       });
@@ -587,7 +599,7 @@
       clear.addEventListener('click', () => {
         q.value = '';
         offset = 0;
-        updateURL({ query: '', limit: PAGE_SIZE, offset });
+        updateURL({ query: '', limit: PAGE_SIZE, offset, checkAvailability });
         renderFromQuery('');
         q.focus();
       });
@@ -596,18 +608,18 @@
       prevBtn.addEventListener('click', () => {
         if (offset <= 0) return;
         offset = Math.max(0, offset - PAGE_SIZE);
-        updateURL({ query: q.value, limit: PAGE_SIZE, offset });
+        updateURL({ query: q.value, limit: PAGE_SIZE, offset, checkAvailability });
         renderFromQuery(q.value);
       });
       nextBtn.addEventListener('click', () => {
         offset += PAGE_SIZE;
-        updateURL({ query: q.value, limit: PAGE_SIZE, offset });
+        updateURL({ query: q.value, limit: PAGE_SIZE, offset, checkAvailability });
         renderFromQuery(q.value);
       });
 
       // Initial state from URL: set query, offset, and encode limit
       q.value = initQuery;
-      updateURL({ query: q.value, limit: PAGE_SIZE, offset });
+      updateURL({ query: q.value, limit: PAGE_SIZE, offset, checkAvailability });
       if (sanitize(q.value)) {
         // Render immediately if URL contained a query
         renderFromQuery(q.value);

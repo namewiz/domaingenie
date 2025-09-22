@@ -73,6 +73,7 @@ export interface ProcessedQuery {
   synonyms: Record<string, string[]>;
   orderedTlds: string[];
   includeHyphenated: boolean;
+  checkAvailability: boolean;
   limit: number;
   prefixes: string[];
   suffixes: string[];

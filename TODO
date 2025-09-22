@@ -1,0 +1,7 @@
+# Future TODOs
+
+- Explore using the browser prompt API to generate domains from natural language
+- Integrate geo-ip and use it to include location-based tlds of interest
+- Build a map of industry to tld mappings like on namecheap beast mode,
+- Expand the list of generic TLDs
+

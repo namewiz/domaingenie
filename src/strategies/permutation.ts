@@ -33,18 +33,6 @@ export class PermutationStrategy implements GenerationStrategy {
       return [token, ...synonyms];
     });
 
-    // Create all unique pairs of token indices and shuffle them for randomness
-    const pairs: Array<[number, number]> = [];
-    for (let i = 0; i < synLists.length; i++) {
-      for (let j = i + 1; j < synLists.length; j++) {
-        pairs.push([i, j]);
-      }
-    }
-    for (let i = pairs.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; // Fisher-Yates shuffle
-    }
-
     const includeHyphenated = query.includeHyphenated ?? false;
     const labelSet = new Set<string>();
     const map = new Map<string, Partial<DomainCandidate>>();
@@ -61,6 +49,26 @@ export class PermutationStrategy implements GenerationStrategy {
       }
       return map.size >= query.limit;
     };
+
+    // Phase 1: generate single-token candidates (including synonyms)
+    for (let i = 0; i < synLists.length; i++) {
+      for (const label of synLists[i]) {
+        if (addLabel(label)) return Array.from(map.values());
+      }
+    }
+
+    // Phase 2: generate pairs if still below limit
+    // Create all unique pairs of token indices and shuffle them for randomness
+    const pairs: Array<[number, number]> = [];
+    for (let i = 0; i < synLists.length; i++) {
+      for (let j = i + 1; j < synLists.length; j++) {
+        pairs.push([i, j]);
+      }
+    }
+    for (let i = pairs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; // Fisher-Yates shuffle
+    }
 
     const generateForPair = (i: number, j: number): boolean => {
       const lists = [synLists[i], synLists[j]];

@@ -8,6 +8,8 @@ const DEFAULT_TLD_WEIGHTS: Record<string, number> = {
   org: 10,
 };
 
+const LABEL_DEMAND_BONUS = 7;
+
 export class ScoringConfig {
   tldWeights: Record<string, number> = DEFAULT_TLD_WEIGHTS;
   hyphenPenalty = 5;
@@ -80,6 +82,15 @@ function isComposedOfDictionaryWords(label: string): boolean {
  * penalizing repeated labels. Optimized with single global sort and
  * shallow lookahead during selection.
  */
+function getDomainLabel(candidate: DomainCandidate): string {
+  const suffix = candidate.suffix || '';
+  if (suffix && candidate.domain.endsWith('.' + suffix)) {
+    return candidate.domain.slice(0, -(suffix.length + 1));
+  }
+  const idx = candidate.domain.lastIndexOf('.');
+  return idx > 0 ? candidate.domain.slice(0, idx) : candidate.domain;
+}
+
 export function rankDomains(candidates: DomainCandidate[], limit?: number): DomainCandidate[] {
   if (!candidates.length) return [];
 
@@ -87,13 +98,6 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
   const sorted = candidates.slice().sort((a, b) => b.score.total - a.score.total);
 
   // Extract label (domain left of last ".suffix") quickly
-  const getLabel = (c: DomainCandidate): string => {
-    const s = c.suffix || '';
-    if (s && c.domain.endsWith('.' + s)) return c.domain.slice(0, -(s.length + 1));
-    const i = c.domain.lastIndexOf('.');
-    return i > 0 ? c.domain.slice(0, i) : c.domain;
-  };
-
   // Group by suffix for TLD diversity
   const bySuffix = new Map<string, DomainCandidate[]>();
   for (const c of sorted) {
@@ -122,7 +126,7 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
       const n = Math.min(lookahead, queue.length);
       for (let i = 0; i < n; i++) {
         const cand = queue[i];
-        const lbl = getLabel(cand);
+        const lbl = getDomainLabel(cand);
         if (usedLabels.has(lbl)) continue;
         const strat = cand.strategy || 'other';
         const breaksRun = !(lastStrategy === strat && strategyRun >= maxStrategyRun);
@@ -139,7 +143,7 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
       if (pickIdx === -1) continue;
 
       const [item] = queue.splice(pickIdx, 1);
-      const lbl = getLabel(item);
+      const lbl = getDomainLabel(item);
       const strat = item.strategy || 'other';
       if (!usedLabels.has(lbl)) usedLabels.add(lbl);
       if (lastStrategy === strat) strategyRun++; else { lastStrategy = strat; strategyRun = 1; }
@@ -156,6 +160,50 @@ export function rankDomains(candidates: DomainCandidate[], limit?: number): Doma
   }
 
   return out;
+}
+
+export function rerankWithUnavailable(
+  candidates: DomainCandidate[],
+  unavailable: DomainCandidate[],
+): DomainCandidate[] {
+  if (!candidates.length) return [];
+
+  const demandByLabel = new Map<string, number>();
+  for (const cand of unavailable) {
+    const label = getDomainLabel(cand);
+    demandByLabel.set(label, (demandByLabel.get(label) || 0) + 1);
+  }
+
+  let hasDemand = false;
+  for (const value of demandByLabel.values()) {
+    if (value > 0) {
+      hasDemand = true;
+      break;
+    }
+  }
+
+  if (!hasDemand) {
+    return rankDomains(candidates, candidates.length);
+  }
+
+  const adjusted = candidates.map(candidate => {
+    const label = getDomainLabel(candidate);
+    const demand = demandByLabel.get(label) || 0;
+    if (!demand) return candidate;
+
+    const bonus = demand * LABEL_DEMAND_BONUS;
+    const components = { ...candidate.score.components };
+    components.availabilityDemand = (components.availabilityDemand || 0) + bonus;
+    return {
+      ...candidate,
+      score: {
+        total: candidate.score.total + bonus,
+        components,
+      },
+    };
+  });
+
+  return rankDomains(adjusted, adjusted.length);
 }
 
 export function scoreCandidates(
@@ -177,7 +225,6 @@ export function scoreCandidates(
       suffix,
       strategy: cand.strategy,
       score,
-      isAvailable: false,
     });
   }
   // Sort by score (highest first) before returning

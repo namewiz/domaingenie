@@ -28,7 +28,9 @@
     }
 
     /* Ensure hidden attribute consistently hides elements */
-    [hidden] { display: none !important; }
+    [hidden] {
+      display: none !important;
+    }
 
     html,
     body {
@@ -360,7 +362,8 @@
     </div>
 
 
-    <footer style="margin:0 auto 0; margin-top:auto; padding-top:48px; padding-bottom: 40px; text-align:center;color:#6b7280;font-size:14px;">
+    <footer
+      style="margin:0 auto 0; margin-top:auto; padding-top:48px; padding-bottom: 40px; text-align:center;color:#6b7280;font-size:14px;">
       Made with ❤️ by Justice &amp; AI. <a href="https://github.com/namewiz/domaingenie" target="_blank"
         style="color:#2563eb;text-decoration:none;">Source code</a>
     </footer>
@@ -483,7 +486,7 @@
 
         try {
           const t0 = performance.now();
-          const res = await client.search({ query: term, offset });
+          const res = await client.search({ query: term, offset, checkAvailability: true });
           const { results: items, metadata, processed } = res;
           const secs = (performance.now() - t0) / 1000;
           if (token !== renderToken) return; // stale render, skip

@@ -1,5 +1,5 @@
-import tlds from "./tlds.json" assert { type: "json" };
 import { runSearchInWorker } from './searchRunner';
+import tlds from "./tlds.json" assert { type: "json" };
 import { ClientInitOptions, DomainSearchOptions, SearchResponse } from './types';
 
 const TLD_MAP: Record<string, string | boolean> = {
@@ -8,10 +8,11 @@ const TLD_MAP: Record<string, string | boolean> = {
 };
 
 const DEFAULT_INIT_OPTIONS: Required<ClientInitOptions> = {
-  defaultTlds: ['com', 'ng', 'com.ng', 'site', 'org', 'net', 'edu.ng', 'name.ng', 'sch.ng', 'io'],
+  defaultTlds: ['com', 'ng', 'com.ng', 'site', 'org', 'net', 'edu.ng', 'name.ng', 'sch.ng', 'app', 'xyz'],
   supportedTlds: Object.keys(TLD_MAP),
   limit: 20,
   offset: 0,
+  checkAvailability: false,
   // more here - https://gist.github.com/marcanuy/06cb00bc36033cd12875
   prefixes: [
     'try', 'the', 'get', 'go',
@@ -58,5 +59,14 @@ export {
 } from './strategies';
 export type {
   ClientInitOptions,
-  DomainCandidate, DomainSearchOptions, GenerationStrategy, LatencyMetrics, ProcessedQuery, DomainScore as ScoreBreakdown, SearchMetadata, SearchResponse
+  DomainAvailability,
+  DomainCandidate,
+  DomainSearchOptions,
+  GenerationStrategy,
+  LatencyMetrics,
+  ProcessedQuery,
+  DomainScore as ScoreBreakdown,
+  SearchMetadata,
+  SearchResponse
 } from './types';
+

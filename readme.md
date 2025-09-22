@@ -44,6 +44,7 @@ Create a client with default search configuration.
 | `suffixes` | `string[]` | – | Suffixes used for generating variants. |
 | `maxSynonyms` | `number` | `5` | Maximum number of synonyms to expand (capped at 10). |
 | `tldWeights` | `Record<string, number>` | – | Weights used when ranking TLDs. |
+| `checkAvailability` | `boolean` | `false` | Remove registered domains using DNS-over-HTTPS lookups. |
 
 ### `client.search(options)`
 
@@ -60,12 +61,14 @@ Search for domain names. `options` extend the init options so each call can over
 | `supportedTlds` | `string[]` | inherits from init | TLDs allowed in results. |
 | `defaultTlds` | `string[]` | inherits from init | TLDs always included when generating names. |
 | `limit` | `number` | inherits from init | Maximum number of domains returned. |
+| `checkAvailability` | `boolean` | inherits from init | Enable availability lookups after ranking. |
 
 #### Response
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `results` | `DomainCandidate[]` | List of generated domains ordered by score. |
+| `invalidCandidates` | `DomainCandidate[]` | Candidates filtered out because they appear registered or invalid. |
 | `success` | `boolean` | Indicates whether the search completed successfully. |
 | `message` | `string?` | Error message when `success` is `false`. |
 | `includesAiGenerations` | `boolean` | Whether AI-generated names were requested. |
@@ -78,7 +81,7 @@ Search for domain names. `options` extend the init options so each call can over
 | `domain` | `string` | Fully qualified domain name. |
 | `suffix` | `string` | TLD without the leading dot. |
 | `score` | `{ total: number, components: Record<string, number> }` | Final score and contributing factors. |
-| `isAvailable` | `boolean?` | Domain availability flag (only with `debug`). |
+| `availability` | `'unregistered' \| 'registered' \| 'unsupported' \| 'invalid' \| 'unknown'` | Status derived from DNS lookups. |
 | `aiGenerated` | `boolean?` | Marks names produced by AI. |
 | `variantTypes` | `string[]?` | Types of permutations used (only with `debug`). |
 | `strategy` | `string?` | Strategy that generated the domain. |

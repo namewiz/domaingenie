@@ -11,6 +11,7 @@ export interface ClientInitOptions {
   suffixes?: string[];
   maxSynonyms?: number;
   tldWeights?: Record<string, number>;
+  checkAvailability?: boolean;
 }
 
 /** Per-search options extending the client defaults. */
@@ -32,10 +33,13 @@ export interface DomainScore {
 }
 
 /** Represents a generated domain name candidate. */
+export type DomainAvailability = 'unregistered' | 'registered' | 'unsupported' | 'invalid' | 'unknown';
+
 export interface DomainCandidate {
   domain: string;
   suffix: string;
   score: DomainScore;
+  availability?: DomainAvailability;
   isAvailable?: boolean;
   aiGenerated?: boolean;
   variantTypes?: string[];
@@ -49,6 +53,8 @@ export interface LatencyMetrics {
   domainGeneration: number;
   scoring: number;
   ranking: number;
+  availabilityCheck: number;
+  availabilityRerank: number;
   strategies: Record<string, number>;
 }
 
@@ -75,6 +81,7 @@ export interface ProcessedQuery {
 /** Response returned from a domain search. */
 export interface SearchResponse {
   results: DomainCandidate[];
+  invalidCandidates: DomainCandidate[];
   success: boolean;
   message?: string;
   includesAiGenerations: boolean;

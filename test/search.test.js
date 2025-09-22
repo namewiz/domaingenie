@@ -14,7 +14,11 @@ test('search generates ranked domain suggestions', async () => {
   assert.ok(result.metadata.latency);
   assert.ok(typeof result.metadata.latency.total === 'number');
   assert.ok(typeof result.metadata.latency.requestProcessing === 'number');
+  assert.ok(typeof result.metadata.latency.availabilityCheck === 'number');
+  assert.ok(typeof result.metadata.latency.availabilityRerank === 'number');
   assert.ok(result.metadata.latency.strategies);
+  assert.ok(Array.isArray(result.invalidCandidates));
+  assert.ok(result.results.every(r => typeof r.availability === 'string'));
 });
 
 test('stop words are removed from processed tokens', async () => {
@@ -32,9 +36,11 @@ test('location maps to ccTLD and hyphen variants generated', async () => {
 
 test('debug mode retains internal fields', async () => {
   const debugRes = await client.search({ query: 'fast tech', debug: true });
-  assert.ok('isAvailable' in debugRes.results[0]);
+  assert.ok(typeof debugRes.results[0].availability === 'string');
+  assert.ok(Array.isArray(debugRes.invalidCandidates));
   const normalRes = await client.search({ query: 'fast tech' });
-  assert.ok(!('isAvailable' in normalRes.results[0]));
+  assert.ok(typeof normalRes.results[0].availability === 'string');
+  assert.ok(Array.isArray(normalRes.invalidCandidates));
 });
 
 
@@ -68,6 +74,20 @@ test('custom tld weights influence ranking', async () => {
   const net = res.results.find(r => r.domain.includes('.net'));
   assert.ok(com && net);
   assert.ok(net.score.total > com.score.total);
+});
+
+test('availability checks filter unavailable candidates', async () => {
+  const availabilityClient = new DomainSearchClient({ checkAvailability: true, limit: 10 });
+  const res = await availabilityClient.search({ query: 'fast tech', debug: true, limit: 5 });
+  assert.ok(res.results.length <= 10);
+  const allowed = new Set(['unregistered', 'unknown', 'unsupported']);
+  assert.ok(res.results.every(r => allowed.has(r.availability)));
+  if (res.invalidCandidates.length) {
+    const invalidStatuses = new Set(['registered', 'invalid']);
+    assert.ok(res.invalidCandidates.every(r => invalidStatuses.has(r.availability)));
+  }
+  assert.ok(res.invalidCandidates.every(r => r.availability !== 'unregistered'));
+  assert.ok(res.results.every(r => r.availability !== 'registered'));
 });
 
 test('invalid tld triggers error', async () => {

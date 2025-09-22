@@ -30,6 +30,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "domainstat": "^1.0.5",
     "stemmer": "^2.0.1",
     "synonyms": "^1.0.1",
     "word-list-json": "^0.2.0"

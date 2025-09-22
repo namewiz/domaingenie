@@ -1,7 +1,8 @@
 import { stemmer } from 'stemmer';
+import { annotateAvailability } from './availability';
 import { generateCandidates } from './generator';
-import { getPerformance } from './perf';
-import { rankDomains, scoreCandidates } from './ranking';
+import { getPerformance, type TimedPerformance } from './perf';
+import { rankDomains, rerankWithUnavailable, scoreCandidates } from './ranking';
 import { expandSynonyms } from './synonyms';
 import { ClientInitOptions, DomainCandidate, DomainSearchOptions, LatencyMetrics, ProcessedQuery, SearchResponse } from './types';
 import { getCcTld, isValidTld, normalizeTld, normalizeTokens, unique } from './utils';
@@ -13,6 +14,8 @@ export function createLatencyMetrics(): LatencyMetrics {
     domainGeneration: 0,
     scoring: 0,
     ranking: 0,
+    availabilityCheck: 0,
+    availabilityRerank: 0,
     strategies: {},
   };
 }
@@ -24,6 +27,12 @@ type PreparedRequest = {
   locationTld?: string;
   tldWeights: Record<string, number>;
   filterApplied: boolean;
+  checkAvailability: boolean;
+};
+
+type AvailabilityStageResult = {
+  results: DomainCandidate[];
+  invalid: DomainCandidate[];
 };
 
 function error(message: string, latency: LatencyMetrics = createLatencyMetrics()): SearchResponse {
@@ -85,29 +94,87 @@ export async function executeSearch(
       latency.scoring = scoringDuration;
     }
 
-    // 4) Rank candidates (account for offset by expanding limit then slicing)
+    // 4) Rank candidates
     const rankingTimer = performance.start('ranking');
-    let ranked: DomainCandidate[] = [];
+    let rankedAll: DomainCandidate[] = [];
     try {
       const rankLimit = prepared.processed.limit;
-      const rankedAll = rankDomains(scored, rankLimit);
-      ranked = (prepared.offset || 0) > 0 ? rankedAll.slice(prepared.offset) : rankedAll;
-      if (prepared.limit < ranked.length) ranked = ranked.slice(0, prepared.limit);
+      rankedAll = rankDomains(scored, rankLimit);
     } finally {
-      const rankingDuration = rankingTimer.stop();
-      latency.ranking = rankingDuration;
+      latency.ranking = rankingTimer.stop();
     }
+
+    const { results: availabilityAdjusted, invalid: invalidCandidates } = await runAvailabilityStage(
+      performance,
+      rankedAll,
+      prepared,
+      latency,
+    );
+
+    const offsetApplied = (prepared.offset || 0) > 0 ? availabilityAdjusted.slice(prepared.offset) : availabilityAdjusted;
+    const ranked = prepared.limit < offsetApplied.length ? offsetApplied.slice(0, prepared.limit) : offsetApplied;
 
     // 5) Return results
     const totalDuration = totalTimer.stop();
     latency.total = totalDuration;
     const totalGenerated = rawCandidates.length;
-    const response = buildResponse(ranked, options, latency, totalGenerated, prepared.filterApplied, prepared.processed);
+    const response = buildResponse(ranked, invalidCandidates, options, latency, totalGenerated, prepared.filterApplied, prepared.processed);
     console.log("search latency: ", JSON.stringify(response.metadata.latency, null, 2));
     return response;
   } finally {
     totalTimer.stop();
   }
+}
+
+async function runAvailabilityStage(
+  performance: TimedPerformance,
+  rankedAll: DomainCandidate[],
+  prepared: PreparedRequest,
+  latency: LatencyMetrics,
+): Promise<AvailabilityStageResult> {
+  if (!prepared.checkAvailability || rankedAll.length === 0) {
+    return { results: rankedAll, invalid: [] };
+  }
+
+  const baseWindow = Math.max(prepared.limit + prepared.offset, prepared.limit);
+  const extraWindow = Math.min(10, Math.max(0, rankedAll.length - baseWindow));
+  const windowSize = Math.min(rankedAll.length, baseWindow + extraWindow);
+  const toCheck = rankedAll.slice(0, windowSize);
+  const remaining = rankedAll.slice(windowSize).map(candidate => ({
+    ...candidate,
+    availability: candidate.availability ?? 'unknown',
+  }));
+
+  const checkTimer = performance.start('availability-check');
+  let availabilityResult: Awaited<ReturnType<typeof annotateAvailability>>;
+  try {
+    availabilityResult = await annotateAvailability(toCheck);
+  } catch {
+    availabilityResult = {
+      available: toCheck.map(candidate => ({
+        ...candidate,
+        availability: candidate.availability ?? 'unknown',
+      })),
+      unavailable: [],
+    };
+  } finally {
+    latency.availabilityCheck = checkTimer.stop();
+  }
+
+  const combined = [...availabilityResult.available, ...remaining];
+
+  const rerankTimer = performance.start('availability-rerank');
+  let reranked = combined;
+  try {
+    reranked = rerankWithUnavailable(combined, availabilityResult.unavailable);
+  } finally {
+    latency.availabilityRerank = rerankTimer.stop();
+  }
+
+  return {
+    results: reranked,
+    invalid: availabilityResult.unavailable,
+  };
 }
 
 function processRequest(
@@ -193,29 +260,41 @@ function processRequest(
     locationTld,
     tldWeights: cfg.tldWeights || {},
     filterApplied: hasSupportedOverride,
+    checkAvailability: !!cfg.checkAvailability,
   };
 }
 
 function buildResponse(
   ranked: DomainCandidate[],
+  invalidCandidates: DomainCandidate[],
   options: DomainSearchOptions,
   latency: LatencyMetrics,
   totalGenerated: number,
   filterApplied: boolean,
   processed: ProcessedQuery
 ): SearchResponse {
-  let finalResults: DomainCandidate[] = ranked;
+  const ensureAvailability = (candidate: DomainCandidate): DomainCandidate => {
+    if (candidate.availability) return candidate;
+    return { ...candidate, availability: 'unknown' };
+  };
+
+  let finalResults: DomainCandidate[] = ranked.map(ensureAvailability);
+  let invalidResults: DomainCandidate[] = invalidCandidates.map(ensureAvailability);
   if (!options.debug) {
-    finalResults = ranked.map(r => ({
+    const transform = (r: DomainCandidate): DomainCandidate => ({
       domain: r.domain,
       suffix: r.suffix,
       score: r.score,
       strategy: r.strategy,
-    }));
+      availability: r.availability ?? 'unknown',
+    });
+    finalResults = finalResults.map(transform);
+    invalidResults = invalidResults.map(transform);
   }
 
   return {
     results: finalResults,
+    invalidCandidates: invalidResults,
     success: true,
     includesAiGenerations: !!options.useAi,
     metadata: {

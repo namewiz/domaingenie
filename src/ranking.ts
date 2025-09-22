@@ -1,4 +1,4 @@
-import synonymsLib from 'synonyms';
+import wordList from 'word-list-json';
 import type { DomainCandidate, DomainScore, ProcessedQuery } from './types';
 import { vowelRatio } from './utils';
 
@@ -29,6 +29,17 @@ export class ScoringConfig {
   }
 }
 
+// Preload dictionary for O(1) membership checks
+const ENGLISH_DICTIONARY: ReadonlySet<string> = (() => {
+  const dict = new Set<string>();
+  for (const entry of wordList) {
+    if (typeof entry !== 'string') continue;
+    const word = entry.toLowerCase();
+    if (/^[a-z]+$/.test(word)) dict.add(word);
+  }
+  return dict;
+})();
+
 // Simple dictionary membership cache for speed
 const DICT_CACHE = new Map<string, boolean>();
 
@@ -37,13 +48,7 @@ function isDictionaryWord(word: string): boolean {
   if (!w || /[^a-z]/.test(w)) return false;
   const cached = DICT_CACHE.get(w);
   if (cached !== undefined) return cached;
-  let result = false;
-  try {
-    const syn = (synonymsLib as any)(w);
-    result = !!syn && Object.keys(syn).length > 0;
-  } catch {
-    result = false;
-  }
+  const result = ENGLISH_DICTIONARY.has(w);
   DICT_CACHE.set(w, result);
   return result;
 }

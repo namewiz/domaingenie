@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "npx -y esbuild src/index.ts src/searchWorkerThread.ts --bundle --outdir=dist --platform=neutral --format=esm --external:worker_threads",
+    "build": "npx -y esbuild src/index.ts src/searchWorkerThread.ts --bundle --minify --outdir=dist --platform=neutral --format=esm --external:worker_threads",
     "postbuild": "cp dist/index.js docs/domaingenie.js && cp dist/searchWorkerThread.js docs/searchWorkerThread.js",
     "test": "npm run build && node --test"
   },
@@ -31,7 +31,7 @@
   "license": "MIT",
   "dependencies": {
     "stemmer": "^2.0.1",
-    "synonyms": "^1.0.1"
-  },
-  "devDependencies": {}
+    "synonyms": "^1.0.1",
+    "word-list-json": "^0.2.0"
+  }
 }

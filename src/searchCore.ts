@@ -20,6 +20,7 @@ export function createLatencyMetrics(): LatencyMetrics {
 type PreparedRequest = {
   processed: ProcessedQuery;
   offset: number;
+  limit: number;
   locationTld?: string;
   tldWeights: Record<string, number>;
   filterApplied: boolean;
@@ -88,9 +89,10 @@ export async function executeSearch(
     const rankingTimer = performance.start('ranking');
     let ranked: DomainCandidate[] = [];
     try {
-      const rankLimit = prepared.processed.limit + (prepared.offset || 0);
+      const rankLimit = prepared.processed.limit;
       const rankedAll = rankDomains(scored, rankLimit);
       ranked = (prepared.offset || 0) > 0 ? rankedAll.slice(prepared.offset) : rankedAll;
+      if (prepared.limit < ranked.length) ranked = ranked.slice(0, prepared.limit);
     } finally {
       const rankingDuration = rankingTimer.stop();
       latency.ranking = rankingDuration;
@@ -167,20 +169,27 @@ function processRequest(
   pushTld(locationTld);
   supportedTlds.forEach(pushTld);
 
+  const requestedLimit = limit as number;
+  const offsetValue = offset as number;
+  const baseGenerationLimit = Number.isFinite(init.limit) ? Math.max(init.limit as number, 0) : 0;
+  const minGenerationLimit = Math.max(baseGenerationLimit, 50);
+  const generationLimit = Math.max(requestedLimit + offsetValue, minGenerationLimit);
+
   const processed: ProcessedQuery = {
     query: cfg.query,
     tokens,
     synonyms,
     orderedTlds,
     includeHyphenated: !!cfg.includeHyphenated,
-    limit: limit as number,
+    limit: generationLimit,
     prefixes,
     suffixes,
   };
 
   return {
     processed,
-    offset: offset as number,
+    offset: offsetValue,
+    limit: requestedLimit,
     locationTld,
     tldWeights: cfg.tldWeights || {},
     filterApplied: hasSupportedOverride,

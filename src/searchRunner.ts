@@ -1,19 +1,8 @@
 import { executeSearch } from './searchCore';
 import { ClientInitOptions, DomainSearchOptions, SearchResponse } from './types';
+import type { WorkerRequest, WorkerResponse } from './types/worker';
 
 const WORKER_PATH = new URL('./searchWorkerThread.js', import.meta.url);
-
-interface WorkerRequest {
-  id: number;
-  init: Required<ClientInitOptions>;
-  options: DomainSearchOptions;
-}
-
-interface WorkerResponse {
-  id: number;
-  result?: SearchResponse;
-  error?: string;
-}
 
 let nextMessageId = 0;
 

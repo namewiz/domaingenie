@@ -1,17 +1,6 @@
 import { executeSearch } from './searchCore';
 import { ClientInitOptions, DomainSearchOptions, SearchResponse } from './types';
-
-interface WorkerRequest {
-  id: number;
-  init: Required<ClientInitOptions>;
-  options: DomainSearchOptions;
-}
-
-interface WorkerResponse {
-  id: number;
-  result?: SearchResponse;
-  error?: string;
-}
+import type { WorkerRequest, WorkerResponse } from './types/worker';
 
 function handleRequest(message: WorkerRequest, postMessage: (response: WorkerResponse) => void): void {
   executeSearch(message.init, message.options)

@@ -53,7 +53,7 @@ export class DomainSearchClient {
 }
 
 export { generateCandidates } from './generator';
-export { scoreCandidates, scoreDomain } from './ranking';
+export { scoreCandidates, scoreDomain } from './scoring';
 export {
   AffixStrategy, PermutationStrategy, TldHackStrategy
 } from './strategies';
